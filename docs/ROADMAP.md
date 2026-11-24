@@ -28,7 +28,9 @@ deliberately hostile ones. The details are in
 (designed against real OSV records rather than guessed up front), querying
 OSV, fetching and caching advisories,
 working offline from the cache, and matching versions against affected ranges
-using each ecosystem's own version rules.
+using each ecosystem's own version rules. The advisory model, reading OSV
+records and version matching are done; querying OSV, the cache and offline
+use come next.
 
 **Projects and history.** Registering projects, keeping a history of scans in
 SQLite, rescanning, and comparing two scans.
