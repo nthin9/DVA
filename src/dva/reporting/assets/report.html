@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="{{CSP}}">
+<meta name="referrer" content="no-referrer">
+<title>{{TITLE}}</title>
+<style>{{STYLE}}</style>
+</head>
+<body>
+<header>
+  <h1 id="title">DVA report</h1>
+  <p id="subtitle" class="muted"></p>
+  <div id="cards" class="cards"></div>
+  <p id="result" class="result"></p>
+  <p class="muted small">No matching advisory means the source had no advisory matching that
+    version when it was asked. It is not proof that a package is safe.</p>
+</header>
+<main>
+  <section>
+    <h2>Dependency graph</h2>
+    <p class="muted small">Each dependency file is its own tree. Scroll to zoom, drag to move,
+      click a package for details.</p>
+    <div class="legend" id="legend"></div>
+    <div class="graph-wrap">
+      <div id="graph"></div>
+      <aside id="details" class="details"><p class="muted">Click a package to see details.</p></aside>
+    </div>
+  </section>
+  <section>
+    <h2>Affected packages</h2>
+    <div id="affected"></div>
+  </section>
+  <section>
+    <h2>Packages that couldn't be fully checked</h2>
+    <div id="incomplete"></div>
+  </section>
+  <section>
+    <h2>Dependency files</h2>
+    <div id="files"></div>
+  </section>
+</main>
+<footer class="muted small" id="footer"></footer>
+<script type="application/json" id="dva-data">{{DATA}}</script>
+<script>{{LIBRARY}}</script>
+<script>{{APP}}</script>
+</body>
+</html>

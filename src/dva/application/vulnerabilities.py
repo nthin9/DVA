@@ -59,10 +59,15 @@ class _Target:
 
 @dataclass
 class _Unchecked:
+    """One package that wasn't looked up, with every place and reason found.
+
+    Each entry in ``items`` is (reason, key, location). ``key`` is set when a
+    lockfile elsewhere could cover the gap (a range next to a pinned lockfile
+    entry); it is ``None`` for packages that can never be looked up.
+    """
+
     identity: PackageIdentity
-    key: PackageKey | None
-    reason: str
-    locations: list[Location] = field(default_factory=list)
+    items: list[tuple[str, PackageKey | None, Location]] = field(default_factory=list)
 
 
 @dataclass
@@ -97,16 +102,18 @@ def check_vulnerabilities(
         for target in targets.values()
     ]
     checked_names = {target.key for target in targets.values()}
-    for item in unchecked.values():
-        if item.key is not None and item.key in checked_names:
-            continue  # covered by an exact version elsewhere in the scan
+    for entry in unchecked.values():
+        # Drop gaps that an exact version elsewhere in the scan already covers.
+        remaining = [i for i in entry.items if i[1] is None or i[1] not in checked_names]
+        if not remaining:
+            continue
         checks.append(
             PackageCheck(
-                item.identity,
+                entry.identity,
                 None,
                 CheckStatus.NOT_CHECKED,
-                tuple(item.locations),
-                reasons=(item.reason,),
+                tuple(dict.fromkeys(location for _, _, location in remaining)),
+                reasons=tuple(dict.fromkeys(reason for reason, _, _ in remaining)),
             )
         )
 
@@ -142,17 +149,17 @@ def _full_name(identity: PackageIdentity) -> str:
 
 def _collect(
     scan: ScanResult, source: AdvisorySource
-) -> tuple[dict[tuple[PackageKey, str], _Target], dict[tuple[str, str, str], _Unchecked]]:
+) -> tuple[dict[tuple[PackageKey, str], _Target], dict[tuple[str, str], _Unchecked]]:
     targets: dict[tuple[PackageKey, str], _Target] = {}
-    unchecked: dict[tuple[str, str, str], _Unchecked] = {}
+    unchecked: dict[tuple[str, str], _Unchecked] = {}
 
     def skip(
         identity: PackageIdentity, key: PackageKey | None, reason: str, where: Location
     ) -> None:
         entry = unchecked.setdefault(
-            (identity.ecosystem, _full_name(identity), reason), _Unchecked(identity, key, reason)
+            (identity.ecosystem, _full_name(identity)), _Unchecked(identity)
         )
-        entry.locations.append(where)
+        entry.items.append((reason, key, where))
 
     def target(identity: PackageIdentity, key: PackageKey, version: str, where: Location) -> None:
         entry = targets.setdefault((key, version), _Target(identity, key, version))

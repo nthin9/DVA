@@ -10,14 +10,41 @@ DVA is in early development. The engine can find and read a project's Python
 dependency files (`requirements.txt` files, `pyproject.toml`, `uv.lock` and
 `poetry.lock`) and npm dependency files (`package.json`, `package-lock.json`
 and `npm-shrinkwrap.json`), including the full dependency tree from a
-lockfile. It can check the exact versions it finds against
-[OSV](https://osv.dev), keep the advisory data in a local cache, and fall back
-to that cache when you're offline. See
+lockfile. It checks the exact versions it finds against
+[OSV](https://osv.dev), keeps the advisory data in a local cache, and falls
+back to that cache when you're offline. Results come as a terminal summary,
+a JSON report and an HTML report with an interactive dependency graph. See
 [Supported formats](docs/SUPPORTED_FORMATS.md) for exactly what is read.
 
-There's no scan command yet: the CLI only prints its version
-(`dva --version`). A scan command with readable output is on the
-[roadmap](docs/ROADMAP.md).
+## Usage
+
+```powershell
+dva scan                       # scan the current folder
+dva scan C:\code\myapp        # scan another folder
+dva scan --html report.html --json report.json
+dva scan --offline             # use only advisory data cached by earlier scans
+dva scan --no-vulnerabilities  # list dependencies without checking advisories
+```
+
+The summary lists every affected package with the advisory's ID, aliases
+(such as the CVE), severity as published, and the fixed version when the
+advisory gives one. It also lists every package that couldn't be checked,
+and why. The HTML report is a single file that works offline. The JSON report
+is described in [Report format](docs/REPORT_FORMAT.md).
+
+The exit code tells scripts what happened:
+
+| Code | Meaning |
+|---|---|
+| 0 | Nothing affected, and everything was checked |
+| 1 | At least one package is affected |
+| 3 | Nothing affected was found, but something couldn't be read or checked |
+| 4 | The scan couldn't run, for example because the folder doesn't exist |
+| 2 | Invalid command-line arguments |
+
+Advisory data is cached in `%LOCALAPPDATA%\DVA` on Windows (elsewhere, see
+[Architecture](docs/ARCHITECTURE.md#storage)). Use `--data-dir` or the
+`DVA_DATA_DIR` environment variable to put it somewhere else.
 
 ## What it will do
 
@@ -56,6 +83,7 @@ macOS should work too, but Windows is the main target).
 
 - [Architecture](docs/ARCHITECTURE.md): how the code is organised and how a scan works
 - [Supported formats](docs/SUPPORTED_FORMATS.md): which dependency files DVA reads, and how fully
+- [Report format](docs/REPORT_FORMAT.md): the fields of the JSON report
 - [Roadmap](docs/ROADMAP.md): what's planned and in what order
 - [Threat model](docs/THREAT_MODEL.md): what DVA defends against and its known limits
 - [Design decisions](docs/DECISIONS.md): the main choices and why they were made
@@ -71,6 +99,7 @@ uv run ruff check .
 uv run ruff format --check .
 uv run mypy
 uv run dva --version
+uv run dva scan .
 ```
 
 If you installed uv with `pip install --user uv` and it isn't on your PATH,
