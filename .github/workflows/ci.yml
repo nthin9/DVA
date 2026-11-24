@@ -35,3 +35,43 @@ jobs:
         run: uv run mypy
       - name: Pytest (offline; live tests excluded)
         run: uv run pytest
+
+  package:
+    name: package / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          python-version: "3.12"
+      - name: Build wheel and source archive
+        run: uv build --out-dir dist
+      - name: Check archive contents
+        run: uv run --no-project python .github/scripts/check_dist.py dist
+      - name: Install the wheel into a clean environment
+        shell: bash
+        run: |
+          uv venv --no-project "$RUNNER_TEMP/clean"
+          uv pip install --python "$RUNNER_TEMP/clean" dist/*.whl
+      - name: Run the installed command
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then bin="$RUNNER_TEMP/clean/Scripts"; else bin="$RUNNER_TEMP/clean/bin"; fi
+          "$bin/dva" --version
+          # Offline with an empty cache: the scan runs but is incomplete (exit 3).
+          set +e
+          "$bin/dva" scan tests/fixtures/npm/basic_project --offline --data-dir "$RUNNER_TEMP/data" \
+            --json "$RUNNER_TEMP/report.json" --html "$RUNNER_TEMP/report.html" --quiet
+          code=$?
+          set -e
+          test "$code" -eq 3
+          test -s "$RUNNER_TEMP/report.json" && test -s "$RUNNER_TEMP/report.html"
+          "$bin/dva" project add tests/fixtures/python/basic_project --data-dir "$RUNNER_TEMP/data"
+          "$bin/dva" project list --data-dir "$RUNNER_TEMP/data"

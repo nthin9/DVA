@@ -192,6 +192,10 @@ def test_rescan_offline_without_cache_is_incomplete(
         ["rescan", "app", "--all"],
         ["rescan", "--all", "--json", "x.json"],
         ["history", "app", "--json", "x.json"],
+        ["history", "app", "--html", "x.html"],
+        ["history", "app", "--show", "1", "--prune", "2"],
+        ["history", "app", "--prune", "0"],
+        ["cache"],
         ["history", "app", "--limit", "0"],
         ["project"],
     ],
@@ -248,3 +252,119 @@ def test_private_registry_flag_reaches_the_check(
     assert "corp-secret" not in json.dumps(fake_osv.requests)
     main(["scan", str(root), "--quiet", "--include-private-registries", *data])
     assert "corp-secret" in json.dumps(fake_osv.requests)
+
+
+def test_history_rebuilds_the_html_report_of_a_saved_scan(
+    tmp_path: Path, data: list[str], fake_osv: FakeOsvTransport, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from dva.domain.deserialization import loads_scan
+    from dva.reporting.html import render_html
+
+    root = app(tmp_path)
+    original = tmp_path / "original.json"
+    main(["project", "add", str(root), *data])
+    main(["rescan", "app", "--json", str(original), "--quiet", *data])
+    write(root, "4.17.21")
+    main(["rescan", "app", "--quiet", *data])
+    page = tmp_path / "old.html"
+    assert main(["history", "app", "--show", "1", "--html", str(page), *data]) == EXIT_CLEAN
+    expected = render_html(loads_scan(original.read_text(encoding="utf-8")))
+    assert page.read_text(encoding="utf-8") == expected
+    assert "GHSA-35jh-r3h4-6jhm" in expected
+
+
+def test_prune_keeps_the_newest_scans(
+    tmp_path: Path, data: list[str], fake_osv: FakeOsvTransport, capsys: pytest.CaptureFixture[str]
+) -> None:
+    main(["project", "add", str(app(tmp_path)), *data])
+    for _ in range(3):
+        main(["rescan", "app", "--quiet", *data])
+    capsys.readouterr()
+    assert main(["history", "app", "--prune", "1", *data]) == EXIT_ERROR
+    assert "delete 2 of 'app'" in capsys.readouterr().err
+    assert main(["history", "app", "--prune", "1", "--yes", *data]) == EXIT_CLEAN
+    main(["history", "app", *data])
+    out = capsys.readouterr().out
+    assert "#3" in out and "#2" not in out and "#1" not in out
+    # Nothing to delete is fine without --yes.
+    assert main(["history", "app", "--prune", "5", *data]) == EXIT_CLEAN
+
+
+def test_search_finds_packages_across_projects(
+    tmp_path: Path, data: list[str], fake_osv: FakeOsvTransport, capsys: pytest.CaptureFixture[str]
+) -> None:
+    main(["project", "add", str(app(tmp_path, "4.17.20", "one")), *data])
+    main(["project", "add", str(app(tmp_path, "4.17.21", "two")), *data])
+    py = tmp_path / "py"
+    py.mkdir()
+    (py / "requirements.txt").write_text("Typing_Extensions==4.12.2\n", encoding="utf-8")
+    main(["project", "add", str(py), *data])
+    main(["project", "add", str(app(tmp_path, "4.17.20", "never")), *data])
+    for name in ("one", "two", "py"):
+        main(["rescan", name, "--quiet", *data])
+    capsys.readouterr()
+
+    assert main(["search", "lodash", *data]) == EXIT_CLEAN
+    out = capsys.readouterr().out
+    assert "one: lodash (npm) 4.17.20 (affected: GHSA-35jh-r3h4-6jhm)" in out
+    assert "two: lodash (npm) 4.17.21 (no matching advisory)" in out
+    assert "never" not in out
+    main(["search", "typing.extensions", *data])
+    assert "py: typing-extensions (pypi) 4.12.2" in capsys.readouterr().out
+    main(["search", "nothing-like-this", *data])
+    assert "No registered project's latest scan includes" in capsys.readouterr().out
+
+
+def test_a_saved_report_printed_to_the_screen_has_no_control_characters(
+    tmp_path: Path, data: list[str], fake_osv: FakeOsvTransport, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Regression: advisory text with a C1 control (CSI) or a bidi override was
+    # printed raw, since JSON only escapes C0 controls.
+    hostile = "evil\u009b31m\u202etext"
+    fake_osv.record("GHSA-35jh-r3h4-6jhm")["summary"] = hostile
+    main(["project", "add", str(app(tmp_path)), *data])
+    main(["rescan", "app", "--quiet", *data])
+    capsys.readouterr()
+    assert main(["history", "app", "--show", "1", *data]) == EXIT_CLEAN
+    out = capsys.readouterr().out
+    assert "\u009b" not in out and "\u202e" not in out
+    advisories = json.loads(out)["vulnerabilities"]["advisories"]
+    assert advisories[0]["summary"] == hostile
+
+
+def test_a_damaged_saved_report_is_not_exported(
+    tmp_path: Path, data: list[str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    import sqlite3
+
+    main(["project", "add", str(app(tmp_path)), *data])
+    main(["rescan", "app", "--no-vulnerabilities", "--quiet", *data])
+    db = sqlite3.connect(tmp_path / "data" / "dva.sqlite")
+    db.execute('UPDATE scans SET report = \'{"schema_version": "dva.report/1"}\'')
+    db.commit()
+    db.close()
+    out = tmp_path / "x.json"
+    assert main(["history", "app", "--show", "1", "--json", str(out), *data]) == EXIT_ERROR
+    assert not out.exists()
+    assert "damaged" in capsys.readouterr().err
+
+
+def test_a_locked_database_is_a_clear_error(
+    tmp_path: Path,
+    data: list[str],
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import sqlite3
+
+    from dva.storage import database
+
+    main(["project", "add", str(app(tmp_path)), *data])
+    monkeypatch.setattr(database, "BUSY_TIMEOUT_SECONDS", 0.05)
+    other = sqlite3.connect(tmp_path / "data" / "dva.sqlite", isolation_level=None)
+    other.execute("BEGIN EXCLUSIVE")
+    try:
+        assert main(["project", "add", str(app(tmp_path, name="b")), *data]) == EXIT_ERROR
+        assert "in use by another DVA command" in capsys.readouterr().err
+    finally:
+        other.close()

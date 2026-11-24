@@ -35,7 +35,7 @@ from dva.domain.identity import PackageIdentity
 from dva.domain.scan import ScanResult
 from dva.domain.vulnerability import CheckStatus
 from dva.ecosystems.registry import AdapterRegistry
-from dva.matching.schemes import UnparsableVersionError, scheme_for
+from dva.matching.schemes import UnparsableVersionError, known_ecosystems, scheme_for
 
 type Clock = Callable[[], datetime]
 type Check = Callable[[ScanResult], ScanResult]
@@ -166,6 +166,33 @@ def rescan_project(
         if old is not None:
             comparison = compare_digests(previous[0], old, record, digest)
     return RescanResult(scan, record, comparison)
+
+
+def find_package(
+    store: HistoryStore, name: str
+) -> tuple[tuple[Project, ScanRecord, DigestEntry], ...]:
+    """Which registered projects use a package, according to each one's latest scan.
+
+    ``name`` is normalized the way each ecosystem does it (for Python,
+    ``Foo_Bar`` and ``foo-bar`` are the same package) and may include an npm
+    scope (``@babel/core``).
+    """
+    found: list[tuple[Project, ScanRecord, DigestEntry]] = []
+    namespace: str | None = None
+    local = name.strip()
+    if local.startswith("@") and "/" in local:  # A scoped name, such as @babel/core.
+        namespace, local = local.split("/", 1)
+    for ecosystem in known_ecosystems():
+        scheme = scheme_for(ecosystem)
+        if not local:
+            continue
+        normalized = scheme.normalize_name(local) if scheme else local
+        try:
+            package = PackageRef(ecosystem, namespace, normalized)
+        except ValueError:
+            continue
+        found += store.latest_entries(package)
+    return tuple(found)
 
 
 def compare_scans(

@@ -237,7 +237,10 @@ keeps its full JSON report and, in separate tables, the package versions it
 found, the status of each and the advisories that affected them. Those rows
 are what two scans are compared on, so a comparison is a few SQL reads rather
 than parsing two reports. Scans are only ever added; removing a project
-deletes its scans with it. Rows read back are turned into domain objects,
+deletes its scans with it, and pruning deletes a project's oldest scans whole.
+A saved JSON report can be read back into a scan result
+(`domain/deserialization.py`), which validates every value, so an old scan's
+HTML report can be rebuilt. Rows read back are turned into domain objects,
 which validate them, so a damaged or edited database gives an error rather
 than a wrong comparison.
 

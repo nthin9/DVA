@@ -12,6 +12,7 @@ from collections.abc import Sequence
 from datetime import datetime
 
 from dva.domain.history import (
+    DigestEntry,
     FindingRef,
     GoneReason,
     PackageRef,
@@ -20,7 +21,7 @@ from dva.domain.history import (
     ScanRecord,
     ScanSummary,
 )
-from dva.domain.vulnerability import DataSource, VulnerabilityStatus
+from dva.domain.vulnerability import CheckStatus, DataSource, VulnerabilityStatus
 from dva.reporting.overview import clean_text
 
 #: How many entries of one kind to list before summarizing the rest.
@@ -111,6 +112,35 @@ def render_history(project: Project, records: Sequence[ScanRecord]) -> str:
         lines.append(f"  #{record.id}  {_when(record.summary.started_at)}  {_counts(record)}")
         lines.append(f"      {_status(record.summary)}")
     return "\n".join(lines) + "\n"
+
+
+def render_search(query: str, found: Sequence[tuple[Project, ScanRecord, DigestEntry]]) -> str:
+    name = clean_text(query)
+    if not found:
+        return (
+            f"No registered project's latest scan includes {name!r}. Projects that were never "
+            "scanned, and older scans, aren't searched.\n"
+        )
+    lines = [f"Projects whose latest scan includes {name!r}:", ""]
+    for project, record, entry in found:
+        version = clean_text(entry.version) if entry.version else "no exact version"
+        status = _ENTRY_STATUS.get(entry.status, "unknown") if entry.status else "not checked"
+        if entry.advisories:
+            status += f": {', '.join(clean_text(a) for a in entry.advisories)}"
+        package = _package(entry.package)
+        when = _when(record.summary.started_at)
+        lines.append(f"  {clean_text(project.name)}: {package} {version} ({status})")
+        lines.append(f"      from scan #{record.id}, {when}")
+    return "\n".join(lines) + "\n"
+
+
+_ENTRY_STATUS = {
+    CheckStatus.AFFECTED: "affected",
+    CheckStatus.NO_MATCHING_ADVISORY: "no matching advisory",
+    CheckStatus.UNKNOWN: "couldn't decide",
+    CheckStatus.NOT_CHECKED: "not checked",
+    CheckStatus.LOOKUP_FAILED: "lookup failed",
+}
 
 
 def summary_line(project: Project, comparison: ScanComparison) -> str:

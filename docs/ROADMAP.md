@@ -36,10 +36,15 @@ interactive dependency graph.
 scan as a snapshot in SQLite, listing a project's history, and comparing two
 scans. Described in [Projects and scan history](HISTORY.md).
 
+**Release preparation.** A security review of the whole tool, CI that builds
+the wheel and source archive on Windows and Linux, checks their contents and
+runs the installed command, install instructions, and one page listing the
+[limitations](LIMITATIONS.md).
+
 ## Next
 
-**First release.** Windows packaging, install instructions, a security review,
-and documentation of what's supported and what isn't.
+**First release.** Tagging and publishing a release from the prepared code.
+Publishing to PyPI comes later.
 
 ## After the first release
 

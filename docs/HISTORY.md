@@ -13,10 +13,13 @@ dva rescan myapp                         # scan again, save it, show what change
 dva rescan --all                         # rescan every registered project
 dva history myapp                        # saved scans, newest first
 dva history myapp --show 3 --json scan3.json   # export a saved scan's JSON report
+dva history myapp --show 3 --html scan3.html   # or rebuild its HTML report
+dva history myapp --prune 20 --yes       # delete all but the newest 20 scans
 dva compare myapp                        # the latest scan against the one before
 dva compare myapp 3                      # scan 3 against the latest
 dva compare myapp 3 5                    # scan 3 against scan 5
 dva project remove myapp --yes           # unregister it and delete its saved scans
+dva search lodash                        # which projects use a package, and which version
 ```
 
 `rescan` takes the same options as `scan` (`--offline`, `--no-vulnerabilities`,
@@ -60,8 +63,18 @@ Everything lives in the same local database as the advisory cache (see
 and the absolute path of its folder. For each scan it keeps the full JSON
 report, exactly as `--json` would have written it, plus the list of package
 versions, statuses and findings used for comparisons. Saved scans are never
-changed. Removing a project deletes its saved scans but never touches the
-project's folder.
+changed. Pruning deletes a project's oldest scans whole, and removing a
+project deletes all of its saved scans; neither ever touches the project's
+folder.
+
+`history --show ID --html` rebuilds the HTML report from the saved JSON
+report, using the current version of DVA's report page. The saved report is
+checked as it is read, and a damaged one is refused rather than shown.
+
+`dva search` looks at the latest saved scan of each registered project. It
+matches names the way each ecosystem does (for Python, `Typing_Extensions`
+and `typing-extensions` are the same package) and accepts npm scopes such as
+`@babel/core`. Projects that have never been scanned aren't included.
 
 The folder path is stored only in the local database. It is shown by
 `dva project list` and in error messages, but it is not written into JSON or
@@ -69,10 +82,7 @@ HTML reports.
 
 ## Current limits
 
-- `history --show` exports the saved JSON report only. Rebuilding the HTML
-  report of an old scan isn't supported yet; run `dva rescan --html` for a
-  current one.
-- Comparisons are between two scans of one project. There are no queries
-  across projects yet.
+- Comparisons are between two scans of one project; `dva search` is the only
+  query across projects, and it looks at latest scans only.
 - History is never pruned automatically. Each saved scan takes roughly the
-  size of its JSON report.
+  size of its JSON report; use `--prune` to delete old ones.
