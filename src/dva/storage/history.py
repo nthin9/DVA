@@ -201,6 +201,36 @@ class SqliteHistoryStore:
             raise HistoryError(f"saved scan #{scan_id} is damaged and can't be read")
         return row[0]
 
+    def prune(self, project_id: int, keep: int) -> int:
+        if keep < 1:
+            raise ValueError("at least one scan must be kept")
+        with self._transaction():
+            cursor = self._db.execute(
+                "DELETE FROM scans WHERE project_id = ? AND id NOT IN"
+                " (SELECT id FROM scans WHERE project_id = ? ORDER BY id DESC LIMIT ?)",
+                (project_id, project_id, keep),
+            )
+        return cursor.rowcount
+
+    def latest_entries(
+        self, package: PackageRef
+    ) -> tuple[tuple[Project, ScanRecord, DigestEntry], ...]:
+        found = []
+        for project in self.projects():
+            latest = self.scans(project.id, limit=1)
+            if not latest:
+                continue
+            record = latest[0]
+            hit = self._db.execute(
+                "SELECT 1 FROM scan_packages WHERE scan_id = ? AND ecosystem = ?"
+                " AND namespace = ? AND name = ? LIMIT 1",
+                (record.id, package.ecosystem, package.namespace or "", package.name),
+            ).fetchone()
+            digest = self.digest(project.id, record.id) if hit else None
+            if digest is not None:
+                found += [(project, record, e) for e in digest.entries if e.package == package]
+        return tuple(found)
+
     # Helpers
 
     def _record(self, scan_id: int) -> ScanRecord | None:

@@ -2,7 +2,8 @@
 
 The application layer uses only this protocol, so it doesn't depend on
 SQLite, and a future desktop app can use the same code. Saved scans can be
-added and read but never changed; deleting a project deletes its scans.
+added and read but never changed. Deleting a project deletes its scans, and
+pruning deletes a project's oldest scans whole.
 """
 
 from __future__ import annotations
@@ -11,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Protocol
 
-from dva.domain.history import Project, ScanDigest, ScanRecord
+from dva.domain.history import DigestEntry, PackageRef, Project, ScanDigest, ScanRecord
 
 
 class HistoryError(Exception):
@@ -57,4 +58,14 @@ class HistoryStore(Protocol):
 
     def report(self, project_id: int, scan_id: int) -> str | None:
         """The JSON report text saved with one of the project's scans."""
+        ...
+
+    def prune(self, project_id: int, keep: int) -> int:
+        """Delete all but the newest ``keep`` saved scans; return how many were deleted."""
+        ...
+
+    def latest_entries(
+        self, package: PackageRef
+    ) -> tuple[tuple[Project, ScanRecord, DigestEntry], ...]:
+        """Entries for exactly this package in each project's latest scan."""
         ...

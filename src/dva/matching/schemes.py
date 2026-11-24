@@ -35,6 +35,10 @@ class VersionScheme:
     def same_package(self, a: str, b: str) -> bool:
         return self._normalize_name(a) == self._normalize_name(b)
 
+    def normalize_name(self, name: str) -> str:
+        """The ecosystem's normalized spelling of a package name."""
+        return self._normalize_name(name)
+
     def exact_version(self, constraint: str) -> str | None:
         """The single version ``constraint`` pins, or ``None`` if it allows more than one."""
         return self._exact(constraint.strip())
@@ -87,6 +91,11 @@ NPM = VersionScheme("semver", lambda name: name, SemVer.parse, _semver_exact)
 SEMVER = NPM
 
 _BY_ECOSYSTEM = {"pypi": PYPI, "npm": NPM}
+
+
+def known_ecosystems() -> tuple[str, ...]:
+    """The DVA ecosystem identifiers that have version rules."""
+    return tuple(_BY_ECOSYSTEM)
 
 
 def scheme_for(ecosystem: str) -> VersionScheme | None:

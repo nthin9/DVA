@@ -36,11 +36,13 @@ from dva.application.analyze import InvalidProjectRootError, analyze_project
 from dva.application.history import (
     ProjectRootError,
     compare_scans,
+    find_package,
     register_project,
     rescan_project,
 )
 from dva.application.vulnerabilities import check_vulnerabilities
 from dva.contracts.history import HistoryError
+from dva.domain.deserialization import ReportFormatError, loads_scan
 from dva.domain.history import Project
 from dva.domain.scan import CompletionState, ScanResult
 from dva.domain.vulnerability import CheckStatus, VulnerabilityStatus
@@ -51,6 +53,7 @@ from dva.reporting.history import (
     render_comparison,
     render_history,
     render_projects,
+    render_search,
     summary_line,
 )
 from dva.reporting.html import render_html
@@ -162,8 +165,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     history = commands.add_parser(
         "history",
-        help="list a project's saved scans, or export one",
-        description="List a project's saved scans, newest first, or export one as JSON.",
+        help="list a project's saved scans, export one, or prune old ones",
+        description="List a project's saved scans, newest first; export one as JSON or "
+        "HTML; or delete old ones.",
     )
     history.add_argument("name", help="the project's name")
     history.add_argument("--limit", type=int, metavar="N", help="show at most N scans")
@@ -171,10 +175,27 @@ def build_parser() -> argparse.ArgumentParser:
         "--show",
         type=int,
         metavar="ID",
-        help="export saved scan ID's JSON report (to --json FILE, or to the screen)",
+        help="export saved scan ID (as JSON to --json FILE or the screen, or to --html FILE)",
     )
-    history.add_argument("--json", metavar="FILE", type=Path, help="file for --show")
+    history.add_argument("--json", metavar="FILE", type=Path, help="JSON file for --show")
+    history.add_argument("--html", metavar="FILE", type=Path, help="HTML file for --show")
+    history.add_argument(
+        "--prune",
+        type=int,
+        metavar="KEEP",
+        help="delete all but the newest KEEP saved scans (needs --yes)",
+    )
+    history.add_argument("--yes", action="store_true", help="confirm --prune")
     _data_dir_option(history)
+
+    search = commands.add_parser(
+        "search",
+        help="find which registered projects use a package",
+        description="List the registered projects whose latest saved scan includes a "
+        "package, with the versions found and their status.",
+    )
+    search.add_argument("package", help="package name, for example requests or @babel/core")
+    _data_dir_option(search)
 
     compare = commands.add_parser(
         "compare",
@@ -213,6 +234,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "history": _history,
         "compare": _compare,
         "cache": _cache,
+        "search": _search,
     }
     command = commands.get(args.command)
     if command is None:
@@ -220,10 +242,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         return EXIT_CLEAN
     if args.command == "rescan" and args.all and (args.json or args.html):
         parser.error("--json and --html can't be used with --all")
-    if args.command == "history" and args.json is not None and args.show is None:
-        parser.error("--json needs --show ID")
-    if args.command == "history" and args.limit is not None and args.limit < 1:
-        parser.error("--limit must be at least 1")
+    if args.command == "history":
+        if (args.json is not None or args.html is not None) and args.show is None:
+            parser.error("--json and --html need --show ID")
+        if args.show is not None and args.prune is not None:
+            parser.error("--show and --prune can't be used together")
+        if args.limit is not None and args.limit < 1:
+            parser.error("--limit must be at least 1")
+        if args.prune is not None and args.prune < 1:
+            parser.error("--prune must keep at least 1 scan")
     _safe_stdout()
     try:
         return command(args)
@@ -400,20 +427,56 @@ def _history(args: argparse.Namespace) -> int:
     with _database(args, "DVA database") as database:
         store = _store(database)
         project = _find(store, args.name)
+        if args.prune is not None:
+            return _prune(args, store, project)
         if args.show is None:
             sys.stdout.write(render_history(project, store.scans(project.id, args.limit)))
             return EXIT_CLEAN
         report = store.report(project.id, args.show)
     if report is None:
         raise _Failure(f"{clean_text(project.name)!r} has no saved scan #{args.show}")
-    if args.json is None:
+    if args.json is None and args.html is None:
         sys.stdout.write(report)
         return EXIT_CLEAN
+    outputs: list[tuple[str, Path, Callable[[], str]]] = []
+    if args.json is not None:
+        outputs.append(("JSON", args.json, lambda: report))
+    if args.html is not None:
+        outputs.append(("HTML", args.html, lambda: render_html(_saved_scan(report, args.show))))
+    for label, path, render in outputs:
+        try:
+            path.write_text(render(), encoding="utf-8")
+        except OSError:
+            raise _Failure(f"couldn't write {str(path)!r}") from None
+        print(f"{label} report of scan #{args.show}: {path}")
+    return EXIT_CLEAN
+
+
+def _saved_scan(report: str, scan_id: int) -> ScanResult:
     try:
-        args.json.write_text(report, encoding="utf-8")
-    except OSError:
-        raise _Failure(f"couldn't write {str(args.json)!r}") from None
-    print(f"JSON report of scan #{args.show}: {args.json}")
+        return loads_scan(report)
+    except ReportFormatError:
+        raise _Failure(f"saved scan #{scan_id} is damaged and can't be read") from None
+
+
+def _prune(args: argparse.Namespace, store: SqliteHistoryStore, project: Project) -> int:
+    count = len(store.scans(project.id))
+    doomed = max(0, count - args.prune)
+    name = clean_text(project.name)
+    if doomed and not args.yes:
+        raise _Failure(
+            f"this would delete {doomed} of {name!r}'s {count} saved scan(s), keeping the "
+            f"newest {args.prune}; run again with --yes to do it"
+        )
+    deleted = store.prune(project.id, args.prune)
+    print(f"Deleted {deleted} saved scan(s) of {name!r}; {count - deleted} kept.")
+    return EXIT_CLEAN
+
+
+def _search(args: argparse.Namespace) -> int:
+    with _database(args, "DVA database") as database:
+        found = find_package(_store(database), args.package)
+    sys.stdout.write(render_search(args.package, found))
     return EXIT_CLEAN
 
 

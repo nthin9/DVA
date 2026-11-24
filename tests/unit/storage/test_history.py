@@ -166,3 +166,20 @@ def test_upgrading_a_database_keeps_cached_advisories(
     assert cached is not None and cached.retrieved_at == T0
     assert SqliteHistoryStore(upgraded).projects() == ()
     upgraded.close()
+
+
+def test_prune_only_touches_one_project(
+    store: SqliteHistoryStore, connection: sqlite3.Connection, tmp_path: Path
+) -> None:
+    app = store.add_project("app", root(tmp_path), T0)
+    other = store.add_project("other", root(tmp_path, "o"), T0)
+    kept = [store.save_scan(app.id, digest(), str(i)).id for i in range(3)][-1]
+    store.save_scan(other.id, digest(), "x")
+    assert store.prune(app.id, 1) == 2
+    assert [r.id for r in store.scans(app.id)] == [kept]
+    assert len(store.scans(other.id)) == 1
+    with pytest.raises(ValueError):
+        store.prune(app.id, 0)
+    # The pruned scans' rows are gone too.
+    (count,) = connection.execute("SELECT COUNT(DISTINCT scan_id) FROM scan_packages").fetchone()
+    assert count == 2
