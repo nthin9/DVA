@@ -61,7 +61,8 @@ from dva.reporting.history import (
 from dva.reporting.html import render_html
 from dva.reporting.json_report import render_json
 from dva.reporting.overview import clean_text
-from dva.reporting.text import render_text
+from dva.reporting.style import Style, colour_wanted
+from dva.reporting.text import render_brief, render_text
 from dva.storage.advisory_cache import SqliteAdvisoryCache
 from dva.storage.advisory_cache import clear as clear_cache
 from dva.storage.advisory_cache import summarize as summarize_cache
@@ -138,7 +139,15 @@ def _check_options(parser: argparse.ArgumentParser) -> None:
         "(their names are sent to OSV)",
     )
     _data_dir_option(parser)
-    parser.add_argument("--quiet", action="store_true", help="don't print the summary")
+    output = parser.add_mutually_exclusive_group()
+    output.add_argument("--quiet", action="store_true", help="don't print the summary")
+    output.add_argument("--brief", action="store_true", help="print one line per affected package")
+    parser.add_argument(
+        "--color",
+        choices=("auto", "always", "never"),
+        default="auto",
+        help="colour the summary (default: auto, only on a terminal and unless NO_COLOR is set)",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -331,13 +340,30 @@ def _checker(
         return None
     source = OsvSource(UrllibTransport())
     cache = SqliteAdvisoryCache(database)
-    return lambda scan: check_vulnerabilities(
-        scan,
-        source,
-        cache,
-        offline=args.offline,
-        other_registries=args.include_private_registries,
-    )
+
+    def check(scan: ScanResult) -> ScanResult:
+        _progress(args, scan)
+        return check_vulnerabilities(
+            scan,
+            source,
+            cache,
+            offline=args.offline,
+            other_registries=args.include_private_registries,
+        )
+
+    return check
+
+
+def _progress(args: argparse.Namespace, scan: ScanResult) -> None:
+    """Say what DVA is waiting on, when someone is watching the terminal."""
+    isatty = getattr(sys.stderr, "isatty", None)
+    if args.quiet or args.offline or isatty is None or not isatty():
+        return
+    identities = [p.identity for m in scan.manifests for p in m.packages]
+    identities += [r.identity for m in scan.manifests for r in m.requirements]
+    names = {(i.ecosystem, i.namespace, i.name) for i in identities}
+    if names:
+        print(f"Looking up {len(names)} package(s) in OSV...", file=sys.stderr, flush=True)
 
 
 def _to_stdout(path: Path | None) -> bool:
@@ -362,7 +388,8 @@ def _write_reports(args: argparse.Namespace, scan: ScanResult) -> None:
 def _print_summary(args: argparse.Namespace, scan: ScanResult) -> None:
     if _to_stdout(args.json):
         return  # The JSON report is the output.
-    sys.stdout.write(render_text(scan))
+    style = Style(colour_wanted(args.color))
+    sys.stdout.write(render_brief(scan, style) if args.brief else render_text(scan, style))
     for label, path in (("JSON report", args.json), ("HTML report", args.html)):
         if path is not None:
             print(f"{label}: {path}")

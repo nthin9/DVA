@@ -104,7 +104,7 @@ def _analyze_file(item: DiscoveredFile, reader: BoundedFileReader) -> ManifestAn
             Diagnostic(
                 "manifest.unsupported_format",
                 DiagnosticLevel.WARNING,
-                f"{file_format.format_name} is recognized but not supported: {file_format.note}",
+                f"recognized, but not read: {file_format.note}",
                 item.path,
             ),
         )

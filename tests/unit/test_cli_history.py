@@ -412,3 +412,16 @@ def test_exclusions_on_scan_and_saved_with_a_project(
     main(["project", "exclude", "app", "--clear", *data])
     assert main(["rescan", "app", "--exclude", "vendor", "--quiet", *data]) == EXIT_CLEAN
     assert main(["project", "exclude", "app", "/abs", *data]) == EXIT_ERROR
+
+
+def test_brief_and_colour_options(
+    tmp_path: Path, data: list[str], fake_osv: FakeOsvTransport, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = app(tmp_path)
+    assert main(["scan", str(root), "--brief", *data]) == EXIT_AFFECTED
+    out = capsys.readouterr().out
+    assert "lodash 4.17.20: 1 advisory (1 high)" in out and "\x1b" not in out
+    main(["scan", str(root), "--color", "always", *data])
+    assert "\x1b[" in capsys.readouterr().out
+    with pytest.raises(SystemExit):
+        main(["scan", str(root), "--brief", "--quiet"])
