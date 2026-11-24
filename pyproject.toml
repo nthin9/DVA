@@ -1,5 +1,5 @@
 [project]
-name = "dva"
+name = "dvanalysis"
 version = "0.0.1"
 description = "DVA (Dependency Vulnerability Analysis): a local-first dependency and vulnerability analysis tool."
 readme = "README.md"
