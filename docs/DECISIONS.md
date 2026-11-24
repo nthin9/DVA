@@ -96,7 +96,8 @@ check what comes back.
 
 The first release draws the dependency graph as a single HTML file with its
 JavaScript bundled inside. It opens in any browser, works offline, and avoids
-building a GUI before the engine is finished.
+building a GUI before the engine is finished. A desktop app is planned after
+the first release; until then the HTML report is the visual view.
 
 The graph is drawn with Cytoscape.js, a mature MIT-licensed graph library,
 rather than our own drawing code. It is vendored as one unmodified file from

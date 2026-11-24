@@ -41,18 +41,28 @@ scans. Described in [Projects and scan history](HISTORY.md).
 **First release.** Windows packaging, install instructions, a security review,
 and documentation of what's supported and what isn't.
 
+## After the first release
+
+**A desktop application.** A graphical app that becomes the main way to use
+DVA: register projects, run scans, browse results and the dependency graph,
+and compare scans, without a terminal. It will ship as a standalone Windows
+application with its own installer, so it doesn't need Python or a package
+manager installed. It calls the same engine as the command line, which stays
+available for scripts and CI. The UI toolkit and packaging tool will be chosen
+when this work starts.
+
+**More ecosystems.** Maven and Gradle first, which also covers Java libraries
+published by vendors such as Oracle. Then others based on demand: Rust
+(Cargo), Go modules, NuGet, C/C++ package managers such as Conan and vcpkg,
+and LuaRocks.
+
 ## Later
 
-- Maven and Gradle, which also covers Java libraries published by vendors such
-  as Oracle.
-- More ecosystems based on demand: Rust (Cargo), Go modules, NuGet, C/C++
-  package managers such as Conan and vcpkg, and LuaRocks.
 - Downloading vulnerability data in bulk for fully offline use.
 - More lockfiles for the ecosystems already supported: Yarn, pnpm and Bun for
   JavaScript, and `Pipfile.lock` and `pylock.toml` for Python.
 - Better handling of monorepos and optional or platform-specific dependencies.
-- A desktop app, a standalone Windows installer, and possibly a VS Code
-  extension.
+- Possibly a VS Code extension.
 
 Some things aren't planned: changing project files automatically, cloud sync,
 and AI-written vulnerability summaries.
