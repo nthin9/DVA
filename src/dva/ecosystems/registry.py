@@ -11,11 +11,12 @@ import re
 from collections.abc import Iterable
 
 from dva.contracts.ecosystem import EcosystemAdapter, FileFormat
+from dva.ecosystems.python import PythonAdapter
 
 _ADAPTER_ID = re.compile(r"^[a-z0-9]+(?:[._-][a-z0-9]+)*$")
 
-#: Adapters shipped with DVA. Empty until the first ecosystem adapter is implemented.
-_BUILTIN_ADAPTERS: tuple[EcosystemAdapter, ...] = ()
+#: Adapters shipped with DVA.
+_BUILTIN_ADAPTERS: tuple[EcosystemAdapter, ...] = (PythonAdapter(),)
 
 
 class RegistrationError(ValueError):

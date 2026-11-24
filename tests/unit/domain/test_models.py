@@ -5,7 +5,12 @@ from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
-from dva.domain.dependency import DeclaredRequirement, DependencyEdge, ResolvedPackage
+from dva.domain.dependency import (
+    DeclaredRequirement,
+    DependencyEdge,
+    ResolvedPackage,
+    SourceKind,
+)
 from dva.domain.diagnostics import Diagnostic, DiagnosticLevel
 from dva.domain.identity import PackageIdentity
 from dva.domain.manifest import ManifestAnalysis, ManifestKind, ParseStatus
@@ -71,6 +76,33 @@ def test_requirement_rejects_bad_line_and_duplicate_groups() -> None:
         DeclaredRequirement(IDENTITY, groups=("dev", "dev"))
     with pytest.raises(ValueError):
         DeclaredRequirement(IDENTITY, constraint="  ")
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"extras": ("socks", "socks")},
+        {"extras": ("",)},
+        {"extras": (" socks",)},
+        {"alias": ""},
+        {"alias": " foo"},
+    ],
+)
+def test_requirement_rejects_bad_extras_and_alias(kwargs: dict[str, object]) -> None:
+    with pytest.raises(ValueError):
+        DeclaredRequirement(IDENTITY, **kwargs)  # type: ignore[arg-type]
+
+
+def test_source_defaults_to_unknown() -> None:
+    assert DeclaredRequirement(IDENTITY).source is SourceKind.UNKNOWN
+    assert ResolvedPackage("n1", IDENTITY, "1.0").source is SourceKind.UNKNOWN
+
+
+def test_edge_rejects_blank_markers_and_duplicate_groups() -> None:
+    with pytest.raises(ValueError):
+        DependencyEdge("a", "b", markers=" ")
+    with pytest.raises(ValueError):
+        DependencyEdge("a", "b", groups=("dev", "dev"))
 
 
 def test_requirement_without_constraint_is_allowed() -> None:

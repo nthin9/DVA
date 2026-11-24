@@ -41,17 +41,19 @@ src/dva/
   application/    use cases such as "analyze this project"         (built)
   contracts/      the interfaces adapters implement                (built)
   discovery/      finding and safely reading project files         (built)
-  ecosystems/     the adapter registry (built); one adapter per
-                  ecosystem (python/, npm/) to come
+  ecosystems/     the adapter registry and one adapter per         (built)
+                  ecosystem: python/ (built), npm/ to come
   intelligence/   vulnerability sources; osv/ is the first
   matching/       checking whether a version falls in an affected range
   storage/        SQLite persistence
   reporting/      JSON report and the HTML graph
 ```
 
-The engine runs end to end today, but no ecosystem adapters ship yet, so a
-real project currently comes back as "no supported files found". The tests
-use a small made-up format to exercise the whole pipeline.
+The engine runs end to end today. The Python adapter reads `requirements.txt`
+files and `pyproject.toml`; the files it recognises but can't read yet, such
+as lockfiles, are listed in the results as unsupported. The exact list is in
+[Supported formats](SUPPORTED_FORMATS.md). The tests also use a small made-up
+format to show that any adapter works with the engine.
 
 ## How a scan works
 
@@ -116,6 +118,15 @@ The model keeps a few distinctions that are easy to lose:
   more than one version, so graph nodes aren't identified by name alone.
 - **Where each piece of data came from.** Every result records which file it
   was read from and how well that file was understood.
+- **Where a dependency is installed from.** Each requirement and package says
+  whether it comes from a package registry, a git repository, a URL, a local
+  path, or the project's own workspace. Only registry packages have release
+  versions that a vulnerability database can be asked about.
+- **The details that change what gets installed.** Requirements keep any
+  extras they ask for (`requests[socks]`), any alias they're installed under,
+  and their platform conditions. A dependency link between two packages can
+  carry its own conditions and groups, because some lockfiles record them per
+  link rather than per package.
 
 Packages also get a [Package URL](https://github.com/package-url/purl-spec)
 (PURL) where the ecosystem has one, while the original name and version are

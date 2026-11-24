@@ -6,10 +6,11 @@ vulnerability advisories. Everything runs on your own machine.
 
 ## Status
 
-DVA is in early development and can't scan real projects yet. The core engine
-is in place (the data model, safe discovery of dependency files, and the
-interface that ecosystem parsers plug into), but the Python and npm parsers
-come next. The CLI only prints its version (`dva --version`) for now.
+DVA is in early development. The engine can find and read a project's Python
+dependency files (`requirements.txt` files and `pyproject.toml`), but it
+doesn't read lockfiles or npm projects yet and doesn't look up vulnerabilities
+yet. See [Supported formats](docs/SUPPORTED_FORMATS.md) for exactly what is
+read. The CLI only prints its version (`dva --version`) for now.
 
 ## What it will do
 
@@ -18,7 +19,8 @@ macOS should work too, but Windows is the main target).
 
 - Find the dependency files in a project, such as `requirements.txt`,
   `pyproject.toml`, `package.json` and `package-lock.json`. The exact list of
-  supported formats will be published once each one is implemented and tested.
+  supported formats is in [Supported formats](docs/SUPPORTED_FORMATS.md) and
+  grows as each one is implemented and tested.
 - Tell apart the dependencies you declared yourself from the ones they pull in,
   and show the path that leads to each one.
 - Look up the exact versions in [OSV](https://osv.dev), keep a local cache, and
@@ -45,6 +47,7 @@ macOS should work too, but Windows is the main target).
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md): how the code is organised and how a scan works
+- [Supported formats](docs/SUPPORTED_FORMATS.md): which dependency files DVA reads, and how fully
 - [Roadmap](docs/ROADMAP.md): what's planned and in what order
 - [Threat model](docs/THREAT_MODEL.md): what DVA defends against and its known limits
 - [Design decisions](docs/DECISIONS.md): the main choices and why they were made

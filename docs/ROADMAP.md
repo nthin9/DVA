@@ -20,6 +20,9 @@ without changing the engine.
 **Python and npm support.** Parsers for specific Python and npm dependency
 files and lockfiles, including direct and transitive dependencies. Each format
 gets its own test files, including malformed and deliberately hostile ones.
+Python's `requirements.txt` files and `pyproject.toml` are done; `uv.lock`,
+`poetry.lock` and the npm formats come next. Progress is tracked in
+[Supported formats](SUPPORTED_FORMATS.md).
 
 **Vulnerability lookups.** The data model for advisories and findings
 (designed against real OSV records rather than guessed up front), querying

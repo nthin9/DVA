@@ -1,0 +1,11 @@
+[project]
+name = "basic-project"
+version = "1.0"
+dependencies = ["requests>=2.31,<3", 'tomli>=2; python_version < "3.11"']
+
+[project.optional-dependencies]
+socks = ["PySocks>=1.7"]
+
+[dependency-groups]
+test = ["pytest>=8"]
+dev = [{include-group = "test"}, "ruff"]

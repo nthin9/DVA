@@ -16,7 +16,9 @@ classifiers = [
     "Topic :: Security",
     "Typing :: Typed",
 ]
-dependencies = []
+dependencies = [
+    "packaging>=24.2",
+]
 
 [project.scripts]
 dva = "dva.cli:main"
