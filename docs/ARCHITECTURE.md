@@ -43,8 +43,10 @@ src/dva/
   discovery/      finding and safely reading project files         (built)
   ecosystems/     the adapter registry and one adapter per         (built)
                   ecosystem: python/ and npm/
-  intelligence/   vulnerability sources; osv/ is the first
-  matching/       checking whether a version falls in an affected range
+  intelligence/   vulnerability sources; osv/ is the first          (partly
+                  built: reading OSV records)
+  matching/       checking whether a version falls in an affected  (built)
+                  range, with each ecosystem's version rules
   storage/        SQLite persistence
   reporting/      JSON report and the HTML graph
 ```
@@ -146,9 +148,32 @@ npm's semver differ in several ways), so matching is written and tested per
 ecosystem. When DVA meets a version or range format it doesn't understand, it
 reports the result as unknown instead of guessing.
 
+Python versions follow PEP 440, using the `packaging` library. npm versions
+follow Semantic Versioning 2.0.0, which DVA implements itself in a few dozen
+lines: only exact versions need comparing, because DVA checks the versions a
+project actually installs, not the ranges it asks for.
+
+Whether a version is affected follows the OSV format's rules. It is affected
+if the advisory lists it explicitly, or if it falls inside an affected range.
+A range is read as a sorted list of events: `introduced` starts an affected
+stretch (`0` means from the first version), `fixed` ends it at that version,
+and `last_affected` ends it just after. Ranges given as git commits can't be
+mapped to an installed version, so on their own they give an "unknown"
+answer. One range that clearly matches is enough for a positive result. If no
+range matches but one of them couldn't be read, the answer is "unknown"
+rather than "not affected".
+
 Not every advisory has a CVE number, so CVE is stored as one of an advisory's
 aliases when it's present. Severity is shown together with the scoring system
-it came from, and is left empty when the advisory doesn't give one.
+it came from, and is left empty when the advisory doesn't give one. A
+database's own rating label (such as GitHub's "moderate") is kept separately
+from scored severities, because it isn't a standard scale. Fixed versions are
+only shown when the advisory gives them.
+
+Advisories from the network are checked before use. A record whose affected
+ranges are malformed is rejected as a whole, because quietly dropping one
+range could hide a real vulnerability. Problems in display-only parts, such as
+a reference link that isn't an `http(s)` URL, only drop that part.
 
 ## OSV
 
