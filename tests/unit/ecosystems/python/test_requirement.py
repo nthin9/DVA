@@ -41,7 +41,9 @@ def test_bare_name_has_no_constraint() -> None:
     ],
 )
 def test_url_requirements_record_their_source(text: str, source: SourceKind) -> None:
-    assert parse_requirement(text).source is source
+    requirement = parse_requirement(text)
+    assert requirement.source is source
+    assert requirement.identity.purl is None
 
 
 def test_url_marker_is_separated() -> None:

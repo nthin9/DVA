@@ -15,7 +15,6 @@ reported rather than guessed.
 
 from __future__ import annotations
 
-import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
@@ -26,7 +25,8 @@ from dva.domain.diagnostics import Diagnostic, DiagnosticLevel
 from dva.domain.manifest import ParseStatus
 from dva.ecosystems.python.names import canonical
 from dva.ecosystems.python.requirement import RequirementSyntaxError, parse_requirement
-from dva.ecosystems.text import decode_utf8, preview
+from dva.ecosystems.python.tomlfile import load_toml
+from dva.ecosystems.text import preview
 
 _TOOL_TABLES = {
     ("poetry", "dependencies"): "Poetry dependencies ([tool.poetry.dependencies])",
@@ -62,21 +62,9 @@ class _State:
 
 
 def parse_pyproject(context: ParseContext) -> AdapterResult:
-    def failed(code: str, message: str) -> AdapterResult:
-        return AdapterResult(
-            status=ParseStatus.FAILED,
-            diagnostics=(Diagnostic(code, DiagnosticLevel.ERROR, message, context.path),),
-        )
-
-    text = decode_utf8(context.content)
-    if text is None:
-        return failed("python.decode_error", "the file is not valid UTF-8 text")
-    try:
-        document = tomllib.loads(text)
-    except tomllib.TOMLDecodeError as error:
-        return failed("python.pyproject.invalid_toml", f"not valid TOML: {preview(str(error))}")
-    except RecursionError:
-        return failed("python.pyproject.invalid_toml", "the TOML is nested too deeply")
+    document = load_toml(context, "python.pyproject.invalid_toml")
+    if isinstance(document, AdapterResult):
+        return document
 
     state = _State(path=context.path)
     project = document.get("project")

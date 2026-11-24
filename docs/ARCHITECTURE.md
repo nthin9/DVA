@@ -50,8 +50,9 @@ src/dva/
 ```
 
 The engine runs end to end today. The Python adapter reads `requirements.txt`
-files and `pyproject.toml`; the files it recognises but can't read yet, such
-as lockfiles, are listed in the results as unsupported. The exact list is in
+files, `pyproject.toml`, `uv.lock` and `poetry.lock`; the files it recognises
+but can't read, such as `Pipfile.lock`, are listed in the results as
+unsupported. The exact list is in
 [Supported formats](SUPPORTED_FORMATS.md). The tests also use a small made-up
 format to show that any adapter works with the engine.
 
