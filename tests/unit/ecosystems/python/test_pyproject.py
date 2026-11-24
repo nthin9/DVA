@@ -94,7 +94,7 @@ def test_dynamic_dependencies_are_reported() -> None:
     assert not result.requirements
 
 
-def test_tool_specific_tables_are_reported_not_read() -> None:
+def test_other_tool_specific_tables_are_reported_not_read() -> None:
     result = parse(
         """
 [tool.poetry.dependencies]
@@ -107,8 +107,125 @@ dev-dependencies = ["pytest"]
     )
     assert result.status is ParseStatus.PARTIAL
     messages = [d.message for d in result.diagnostics if d.code == "python.pyproject.tool_table"]
-    assert len(messages) == 2
-    assert not result.requirements
+    assert len(messages) == 1 and "uv" in messages[0]
+    # Poetry's table is read; "python" is the interpreter, not a package.
+    assert [(r.identity.name, r.constraint) for r in result.requirements] == [
+        ("requests", ">=2,<3")
+    ]
+
+
+def test_poetry_tables_are_read() -> None:
+    result = parse(
+        """
+[tool.poetry]
+name = "app"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+exact = "1.2.3"
+caret = "^0.2.3"
+tilde = { version = "~1.4", extras = ["fast"], python = ">=3.11" }
+star = "*"
+optional-one = { version = "^1", optional = true }
+from-git = { git = "https://user:token@example.com/x.git", branch = "main" }
+local = { path = "../local", develop = true }
+multi = [
+    { version = "<2", python = "<3.11" },
+    { version = ">=2", python = ">=3.11" },
+]
+odd = "1.0 || 2.0"
+app = { path = ".", extras = ["x"] }
+
+[tool.poetry.extras]
+speed = ["optional-one"]
+
+[tool.poetry.group.test.dependencies]
+pytest = "^8.3"
+
+[tool.poetry.dev-dependencies]
+black = "24.1.0"
+"""
+    )
+    found = {
+        (r.identity.name, r.constraint, r.markers, r.groups, r.source.value, r.extras)
+        for r in result.requirements
+    }
+    assert ("exact", "==1.2.3", None, (), "registry", ()) in found
+    assert ("caret", ">=0.2.3,<0.3.0", None, (), "registry", ()) in found
+    assert (
+        "tilde",
+        ">=1.4,<1.5",
+        'python_version >= "3.11"',
+        (),
+        "registry",
+        ("fast",),
+    ) in found
+    assert ("star", None, None, (), "registry", ()) in found
+    assert ("optional-one", ">=1,<2", None, ("optional:speed",), "registry", ()) in found
+    assert ("pytest", ">=8.3,<9.0", None, ("group:test",), "registry", ()) in found
+    assert ("black", "==24.1.0", None, ("group:dev",), "registry", ()) in found
+    multi = sorted(r.markers or "" for r in result.requirements if r.identity.name == "multi")
+    assert multi == ['python_version < "3.11"', 'python_version >= "3.11"']
+    git = next(r for r in result.requirements if r.identity.name == "from-git")
+    assert git.source.value == "git" and "token" not in (git.constraint or "")
+    assert next(r for r in result.requirements if r.identity.name == "local").source.value == "path"
+    # An alternative ("||") has no standard form: kept without a version, and reported.
+    odd = next(r for r in result.requirements if r.identity.name == "odd")
+    assert odd.constraint is None
+    assert "python.pyproject.poetry_constraint" in {d.code for d in result.diagnostics}
+    assert result.status is ParseStatus.PARTIAL
+    assert "python" not in {r.identity.name for r in result.requirements}
+
+
+def test_poetry_2_details_for_project_dependencies_are_not_repeated() -> None:
+    result = parse(
+        """
+[project]
+name = "app"
+dependencies = ["requests>=2"]
+
+[tool.poetry.dependencies]
+requests = { source = "pypi" }
+"""
+    )
+    assert [r.identity.name for r in result.requirements] == ["requests"]
+
+
+def test_a_private_primary_poetry_source_marks_registry_packages() -> None:
+    result = parse(
+        """
+[project]
+name = "app"
+dependencies = ["corp-lib==1.0"]
+
+[tool.poetry.dependencies]
+other = { version = "1.0", source = "pypi" }
+
+[[tool.poetry.source]]
+name = "corp"
+url = "https://pkgs.corp.example/simple"
+priority = "primary"
+"""
+    )
+    sources = {r.identity.name: (r.source.value, r.identity.purl) for r in result.requirements}
+    assert sources["corp-lib"] == ("other_registry", None)
+
+
+def test_a_supplemental_private_source_only_marks_packages_that_name_it() -> None:
+    result = parse(
+        """
+[tool.poetry.dependencies]
+public = "1.0"
+corp-lib = { version = "1.0", source = "corp" }
+
+[[tool.poetry.source]]
+name = "corp"
+url = "https://pkgs.corp.example/simple"
+priority = "supplemental"
+"""
+    )
+    sources = {r.identity.name: r.source.value for r in result.requirements}
+    assert sources == {"public": "registry", "corp-lib": "other_registry"}
 
 
 def test_file_without_dependencies_is_parsed_and_empty() -> None:

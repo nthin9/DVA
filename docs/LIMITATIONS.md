@@ -30,7 +30,7 @@ item is described in more detail in the page it links to.
 - Packages installed from git, a URL or a local path aren't looked up.
 - Packages from a private registry or a mirror aren't looked up unless you
   pass `--include-private-registries`. Registries configured outside the
-  dependency files (`pip.conf`, `.npmrc`, `pyproject.toml` tool settings) and
+  dependency files (`pip.conf`, `.npmrc`, PDM and uv settings) and
   `--extra-index-url` aren't detected, so those packages are treated as coming
   from the public registry. See
   [Supported formats](SUPPORTED_FORMATS.md#packages-from-other-registries).
