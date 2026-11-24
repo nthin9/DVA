@@ -46,6 +46,13 @@ Projects, scan history and the advisory cache are stored in a single SQLite
 file. It needs no server, ships with Python, and is more than enough for one
 user. Syncing between machines isn't planned.
 
+DVA talks to it with the standard library's `sqlite3` module and plain SQL,
+not an ORM such as SQLAlchemy. The database has only a few tables, there is
+one user and one database engine, and keeping the queries visible as plain SQL
+makes them easy to review. Schema changes are small numbered SQL scripts that
+DVA applies itself, which needs no migration tool and no extra dependency. If
+DVA ever needed a server database, this would be worth revisiting.
+
 ## 6. As few runtime dependencies as possible
 
 DVA started out with only the standard library: `argparse` for the CLI,
@@ -96,3 +103,17 @@ building a GUI before the engine is finished.
 DVA uses the Apache 2.0 license, a permissive license with an explicit patent
 grant. Any third-party code bundled with DVA, such as a graph library, has to
 use a compatible license, and its notice is included.
+
+## 11. Look up packages by name and match versions locally
+
+DVA asks OSV which advisories exist for a package by ecosystem and name, and
+then decides on its own machine whether the installed version is affected.
+It could instead send each version and let OSV decide, but that tells the
+service more about the project, and the answer couldn't be reused for other
+versions or offline. Matching locally needs correct version rules for each
+ecosystem, which DVA has to have anyway, and the tests check them at the
+edges of real advisories' ranges.
+
+The HTTP client is the standard library's `urllib`, with timeouts, HTTPS only,
+no redirects, a response-size limit and a few retries, so no extra dependency
+is needed for the handful of requests a scan makes.

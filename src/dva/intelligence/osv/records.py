@@ -51,7 +51,7 @@ def parse_record(value: object) -> Advisory:
     def fail(message: str) -> InvalidRecordError:
         return InvalidRecordError(f"{record_id}: {message}")
 
-    modified = _timestamp(value.get("modified"))
+    modified = parse_timestamp(value.get("modified"))
     if modified is None:
         raise fail("modified is missing or not an RFC 3339 timestamp")
     affected = value.get("affected", [])
@@ -80,7 +80,8 @@ def parse_record(value: object) -> Advisory:
         raise fail("contains an invalid value") from None
 
 
-def _timestamp(value: object) -> datetime | None:
+def parse_timestamp(value: object) -> datetime | None:
+    """An RFC 3339 timestamp as a UTC datetime, or ``None`` if it isn't one."""
     if not isinstance(value, str):
         return None
     match = _TIMESTAMP.match(value)
@@ -105,7 +106,7 @@ def _timestamp(value: object) -> datetime | None:
 def _optional_timestamp(value: dict[str, Any], key: str, fail: Any) -> datetime | None:
     if value.get(key) is None:
         return None
-    stamp = _timestamp(value[key])
+    stamp = parse_timestamp(value[key])
     if stamp is None:
         raise fail(f"{key} is not an RFC 3339 timestamp")
     return stamp
