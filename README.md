@@ -18,7 +18,8 @@ a JSON report and an HTML report with an interactive dependency graph. See
 
 ## Install
 
-You need Python 3.12 or newer. DVA isn't on PyPI yet, so install it straight
+You need Python 3.12 or newer. DVA isn't on PyPI yet (when it is, the package
+will be called `dvanalysis`, since `dva` is taken), so install it straight
 from GitHub with [uv](https://docs.astral.sh/uv/) or
 [pipx](https://pipx.pypa.io/), which put the `dva` command on your PATH in
 its own environment:
@@ -30,8 +31,8 @@ pipx install git+https://github.com/nthin9/DVA
 ```
 
 Check that it works with `dva --version`. To update later, run
-`uv tool upgrade dva` (or `pipx upgrade dva`). To remove it, run
-`uv tool uninstall dva` (or `pipx uninstall dva`); the advisory cache stays
+`uv tool upgrade dvanalysis` (or `pipx upgrade dvanalysis`). To remove it, run
+`uv tool uninstall dvanalysis` (or `pipx uninstall dvanalysis`); the advisory cache stays
 in your data folder until you delete it.
 
 ## Usage

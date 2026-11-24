@@ -80,7 +80,7 @@ wheels = [
 ]
 
 [[package]]
-name = "dva"
+name = "dvanalysis"
 version = "0.0.1"
 source = { editable = "." }
 dependencies = [
