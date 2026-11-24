@@ -22,15 +22,13 @@ dependencies. Each format has its own test files, including malformed and
 deliberately hostile ones. The details are in
 [Supported formats](SUPPORTED_FORMATS.md).
 
-## Next
+**Vulnerability lookups.** The data model for advisories and findings,
+designed against real OSV records; looking packages up in OSV by name;
+caching advisories in SQLite and working offline from the cache; and matching
+installed versions against affected ranges using each ecosystem's own version
+rules.
 
-**Vulnerability lookups.** The data model for advisories and findings
-(designed against real OSV records rather than guessed up front), querying
-OSV, fetching and caching advisories,
-working offline from the cache, and matching versions against affected ranges
-using each ecosystem's own version rules. The advisory model, reading OSV
-records and version matching are done; querying OSV, the cache and offline
-use come next.
+## Next
 
 **Projects and history.** Registering projects, keeping a history of scans in
 SQLite, rescanning, and comparing two scans.

@@ -43,11 +43,11 @@ src/dva/
   discovery/      finding and safely reading project files         (built)
   ecosystems/     the adapter registry and one adapter per         (built)
                   ecosystem: python/ and npm/
-  intelligence/   vulnerability sources; osv/ is the first          (partly
-                  built: reading OSV records)
+  intelligence/   vulnerability sources; osv/ is the first, plus a (built)
+                  small HTTPS client
   matching/       checking whether a version falls in an affected  (built)
                   range, with each ecosystem's version rules
-  storage/        SQLite persistence
+  storage/        SQLite persistence: the advisory cache so far    (built)
   reporting/      JSON report and the HTML graph
 ```
 
@@ -177,12 +177,32 @@ a reference link that isn't an `http(s)` URL, only drop that part.
 
 ## OSV
 
-OSV is the first vulnerability source. Its batch API returns only advisory IDs
-for a list of package versions, so DVA then fetches the full records it needs
-and caches them locally with the time they were retrieved.
+OSV is the first vulnerability source. DVA asks its batch API which advisories
+exist for each package, by ecosystem and name only, without a version. The
+answer lists advisory IDs with the time each record was last changed. DVA
+then downloads only the records that are new or have changed since it cached
+them, and checks each installed version against them locally. Asking by name
+sends OSV less about the project, and it means the cache holds every advisory
+for a package, so any version of it can be checked offline later.
 
-If OSV can't be reached, DVA uses the cached data and says how old it is. A
-failed lookup is never reported as "no vulnerabilities".
+The versions checked are the exact ones a lockfile records, plus requirements
+pinned to a single version (`requests==2.31.0`). A requirement that only gives
+a range (`requests>=2`) can't be checked honestly and is listed as not
+checked, unless a lockfile in the same project pins that package anyway.
+Packages from git, URLs or local paths aren't looked up and are listed with
+the reason.
+
+Every package gets one of five outcomes: affected, no matching advisory,
+unknown (advisories exist but DVA couldn't decide for this version), not
+checked (with the reason), or lookup failed. "No matching advisory" means OSV
+had nothing matching that version when it was asked; it isn't a claim that
+the package is safe.
+
+If OSV can't be reached, or DVA is told to work offline, it uses the cached
+data and records how old it is. If an updated record can't be downloaded, the
+older cached copy is used and the result says so. A failed lookup is never
+reported as "no vulnerabilities": a package with no cached data at all is
+marked as a failed lookup.
 
 API reference: <https://github.com/google/osv.dev/blob/master/docs/api/post-v1-querybatch.md>
 
@@ -191,8 +211,18 @@ API reference: <https://github.com/google/osv.dev/blob/master/docs/api/post-v1-q
 Registered projects, scan history and cached advisories go in a SQLite file in
 the user's application data folder, not inside the scanned project. Each scan
 is stored as a snapshot that isn't changed afterwards, so earlier scans can be
-compared with new ones. Whether to use plain `sqlite3` with numbered migration
-scripts or SQLAlchemy with Alembic will be decided when storage is built.
+compared with new ones.
+
+The database uses Python's built-in `sqlite3` module and plain SQL. Its schema
+is built by numbered migration scripts in `storage/migrations/`, each applied
+once inside a transaction and recorded in the database. A database written by
+a newer version of DVA is refused rather than opened. The folder is
+`%LOCALAPPDATA%\DVA` on Windows, `~/Library/Application Support/DVA` on macOS,
+and `~/.local/share/dva` elsewhere; setting `DVA_DATA_DIR` overrides it.
+
+The cache keeps advisory records as the raw text OSV returned and checks them
+again every time they're read, so a damaged or edited cache file can't slip
+bad data into a scan.
 
 ## Reports and the dependency graph
 

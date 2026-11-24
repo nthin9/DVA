@@ -8,6 +8,9 @@ from enum import StrEnum
 
 from dva.domain.diagnostics import Diagnostic, DiagnosticLevel
 from dva.domain.manifest import ManifestAnalysis, ParseStatus
+from dva.domain.vulnerability import VulnerabilityReport, VulnerabilityStatus
+
+__all__ = ["CompletionState", "ScanResult", "VulnerabilityStatus"]
 
 
 class CompletionState(StrEnum):
@@ -24,12 +27,6 @@ class CompletionState(StrEnum):
     NO_SUPPORTED_FILES = "no_supported_files"
 
 
-class VulnerabilityStatus(StrEnum):
-    """Whether vulnerability intelligence was consulted for this scan."""
-
-    NOT_QUERIED = "not_queried"
-
-
 def _require_utc(field: str, value: datetime) -> None:
     if value.tzinfo is None or value.utcoffset() != timedelta(0):
         raise ValueError(f"{field} must be a timezone-aware UTC datetime")
@@ -40,7 +37,8 @@ class ScanResult:
     """An immutable snapshot of one analysis run.
 
     ``project_name`` is a display name (the root directory's name), never the
-    absolute root path.
+    absolute root path. ``vulnerabilities`` is ``None`` until the scan's
+    packages have been checked against a vulnerability source.
     """
 
     tool_version: str
@@ -49,7 +47,7 @@ class ScanResult:
     finished_at: datetime
     manifests: tuple[ManifestAnalysis, ...] = ()
     diagnostics: tuple[Diagnostic, ...] = ()
-    vulnerability_status: VulnerabilityStatus = VulnerabilityStatus.NOT_QUERIED
+    vulnerabilities: VulnerabilityReport | None = None
 
     def __post_init__(self) -> None:
         if not self.tool_version:
@@ -63,6 +61,12 @@ class ScanResult:
         paths = [manifest.path for manifest in self.manifests]
         if len(set(paths)) != len(paths):
             raise ValueError("manifest paths must be unique within a scan")
+
+    @property
+    def vulnerability_status(self) -> VulnerabilityStatus:
+        if self.vulnerabilities is None:
+            return VulnerabilityStatus.NOT_QUERIED
+        return self.vulnerabilities.status
 
     @property
     def completion(self) -> CompletionState:

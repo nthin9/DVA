@@ -10,8 +10,14 @@ DVA is in early development. The engine can find and read a project's Python
 dependency files (`requirements.txt` files, `pyproject.toml`, `uv.lock` and
 `poetry.lock`) and npm dependency files (`package.json`, `package-lock.json`
 and `npm-shrinkwrap.json`), including the full dependency tree from a
-lockfile. It doesn't look up vulnerabilities yet. See [Supported formats](docs/SUPPORTED_FORMATS.md) for exactly what is
-read. The CLI only prints its version (`dva --version`) for now.
+lockfile. It can check the exact versions it finds against
+[OSV](https://osv.dev), keep the advisory data in a local cache, and fall back
+to that cache when you're offline. See
+[Supported formats](docs/SUPPORTED_FORMATS.md) for exactly what is read.
+
+There's no scan command yet: the CLI only prints its version
+(`dva --version`). A scan command with readable output is on the
+[roadmap](docs/ROADMAP.md).
 
 ## What it will do
 
@@ -37,8 +43,9 @@ macOS should work too, but Windows is the main target).
 
 - Run anything from the project it scans. No install scripts, no build steps,
   no `pip install` or `npm install`.
-- Upload your code. The only thing sent to OSV is the package name, ecosystem
-  and version being looked up.
+- Upload your code. The only thing sent to OSV is the ecosystem and name of
+  each package being looked up. Not even the version is sent: DVA fetches the
+  advisories for a package and checks the version on your machine.
 - Collect telemetry.
 - Change your dependency files or upgrade packages for you.
 - Tell you a project is "safe". A scan reports what it found, what it couldn't

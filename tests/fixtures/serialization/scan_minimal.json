@@ -132,8 +132,9 @@
     }
   ],
   "project_name": "demo",
-  "schema_version": "dva.internal-scan/1",
+  "schema_version": "dva.internal-scan/2",
   "started_at": "2026-01-02T03:04:05.000000Z",
   "tool_version": "0.0.1",
+  "vulnerabilities": null,
   "vulnerability_status": "not_queried"
 }

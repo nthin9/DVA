@@ -38,14 +38,21 @@ are, and how each risk is handled.
 | A network failure is read as "nothing found" | Failed lookups are reported as failed, and cached results are shown with their age |
 | A version is matched against the wrong range | Version rules specific to each ecosystem, with tests at the edges of affected ranges |
 | Script injection through the HTML report | Outside text is escaped, data is passed as JSON, scripts are bundled locally, and a restrictive Content Security Policy is applied |
-| Private information leaks out | No telemetry; reports leave out absolute paths by default; only package name, ecosystem and version are sent to OSV |
+| Private information leaks out | No telemetry; reports leave out absolute paths by default; only the ecosystem and package name are sent to OSV |
 | DVA's own dependencies are compromised | Few dependencies, locked versions, and review of any dependency change |
 
 ## What gets sent over the network
 
-When DVA looks up a package it sends OSV the ecosystem, the package name (or
-PURL) and the version. It doesn't send source code, dependency files, file
-paths, or anything else from the project.
+When DVA looks up a package it sends OSV only the ecosystem and the package
+name, for example `PyPI` and `requests`. It doesn't send the version, source
+code, dependency files, file paths, or anything else from the project.
+Packages installed from git, a URL or a local path aren't looked up at all,
+so the names of private internal packages don't leave the machine that way.
+A package from a private registry is still looked up by name.
+
+Requests go only to `https://api.osv.dev`, with a timeout, a cap on the
+response size, and no redirects followed. The User-Agent names DVA and its
+version, nothing about the user.
 
 ## Known limits
 
