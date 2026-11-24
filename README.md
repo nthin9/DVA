@@ -16,6 +16,24 @@ back to that cache when you're offline. Results come as a terminal summary,
 a JSON report and an HTML report with an interactive dependency graph. See
 [Supported formats](docs/SUPPORTED_FORMATS.md) for exactly what is read.
 
+## Install
+
+You need Python 3.12 or newer. DVA isn't on PyPI yet, so install it straight
+from GitHub with [uv](https://docs.astral.sh/uv/) or
+[pipx](https://pipx.pypa.io/), which put the `dva` command on your PATH in
+its own environment:
+
+```powershell
+uv tool install git+https://github.com/nthin9/DVA
+# or
+pipx install git+https://github.com/nthin9/DVA
+```
+
+Check that it works with `dva --version`. To update later, run
+`uv tool upgrade dva` (or `pipx upgrade dva`). To remove it, run
+`uv tool uninstall dva` (or `pipx uninstall dva`); the advisory cache stays
+in your data folder until you delete it.
+
 ## Usage
 
 ```powershell
