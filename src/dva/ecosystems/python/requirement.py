@@ -60,7 +60,7 @@ def parse_requirement(
         source = SourceKind.WORKSPACE
 
     return DeclaredRequirement(
-        identity=identity(parsed.name),
+        identity=identity(parsed.name, from_registry=source is SourceKind.REGISTRY),
         constraint=constraint,
         markers=markers or None,
         groups=groups,

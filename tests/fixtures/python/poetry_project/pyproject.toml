@@ -1,0 +1,8 @@
+[project]
+name = "poetry-project"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["requests[socks]>=2.31"]
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3"

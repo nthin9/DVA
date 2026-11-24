@@ -15,14 +15,14 @@ file count and file size; and stable JSON output, so the same scan always
 produces the same result. Tests show that a new adapter can be plugged in
 without changing the engine.
 
-## Next
-
-**Python and npm support.** Parsers for specific Python and npm dependency
-files and lockfiles, including direct and transitive dependencies. Each format
-gets its own test files, including malformed and deliberately hostile ones.
-Python's `requirements.txt` files and `pyproject.toml` are done; `uv.lock`,
-`poetry.lock` and the npm formats come next. Progress is tracked in
+**Python and npm support.** Parsers for Python's `requirements.txt` files,
+`pyproject.toml`, `uv.lock` and `poetry.lock`, and for npm's `package.json`,
+`package-lock.json` and `npm-shrinkwrap.json`, including direct and transitive
+dependencies. Each format has its own test files, including malformed and
+deliberately hostile ones. The details are in
 [Supported formats](SUPPORTED_FORMATS.md).
+
+## Next
 
 **Vulnerability lookups.** The data model for advisories and findings
 (designed against real OSV records rather than guessed up front), querying
@@ -46,6 +46,8 @@ and documentation of what's supported and what isn't.
 - More ecosystems based on demand: Rust (Cargo), Go modules, NuGet, C/C++
   package managers such as Conan and vcpkg, and LuaRocks.
 - Downloading vulnerability data in bulk for fully offline use.
+- More lockfiles for the ecosystems already supported: Yarn, pnpm and Bun for
+  JavaScript, and `Pipfile.lock` and `pylock.toml` for Python.
 - Better handling of monorepos and optional or platform-specific dependencies.
 - A desktop app, a standalone Windows installer, and possibly a VS Code
   extension.

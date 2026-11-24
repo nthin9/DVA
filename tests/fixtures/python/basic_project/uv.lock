@@ -1,1 +1,136 @@
 version = 1
+revision = 3
+requires-python = ">=3.10"
+resolution-markers = [
+    "python_full_version >= '3.11'",
+    "python_full_version < '3.11'",
+]
+
+[[package]]
+name = "basic-project"
+version = "1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "requests" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
+]
+
+[package.optional-dependencies]
+socks = [
+    { name = "pysocks" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+test = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pysocks", marker = "extra == 'socks'", specifier = ">=1.7" },
+    { name = "requests", specifier = ">=2.31,<3" },
+    { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2" },
+]
+provides-extras = ["socks"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=8" },
+    { name = "ruff" },
+]
+test = [{ name = "pytest", specifier = ">=8" }]
+
+[[package]]
+name = "certifi"
+version = "2024.8.30"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/certifi-2024.8.30.tar.gz", hash = "sha256:0000000000000000000000000000000000000000000000000000000000000001", size = 168507 }
+
+[[package]]
+name = "charset-normalizer"
+version = "3.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/charset_normalizer-3.4.0.tar.gz", hash = "sha256:0000000000000000000000000000000000000000000000000000000000000002", size = 106620 }
+
+[[package]]
+name = "colorama"
+version = "0.4.6"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/colorama-0.4.6.tar.gz", hash = "sha256:0000000000000000000000000000000000000000000000000000000000000003", size = 27697 }
+
+[[package]]
+name = "idna"
+version = "3.10"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/idna-3.10.tar.gz", hash = "sha256:0000000000000000000000000000000000000000000000000000000000000004", size = 190490 }
+
+[[package]]
+name = "iniconfig"
+version = "2.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/iniconfig-2.0.0.tar.gz", hash = "sha256:0000000000000000000000000000000000000000000000000000000000000005", size = 4646 }
+
+[[package]]
+name = "packaging"
+version = "24.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/packaging-24.2.tar.gz", hash = "sha256:0000000000000000000000000000000000000000000000000000000000000006", size = 163950 }
+
+[[package]]
+name = "pluggy"
+version = "1.5.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/pluggy-1.5.0.tar.gz", hash = "sha256:0000000000000000000000000000000000000000000000000000000000000007", size = 67955 }
+
+[[package]]
+name = "pysocks"
+version = "1.7.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/PySocks-1.7.1.tar.gz", hash = "sha256:0000000000000000000000000000000000000000000000000000000000000008", size = 284429 }
+
+[[package]]
+name = "pytest"
+version = "8.3.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "iniconfig" },
+    { name = "packaging" },
+    { name = "pluggy" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/pytest-8.3.4.tar.gz", hash = "sha256:0000000000000000000000000000000000000000000000000000000000000009", size = 1445919 }
+
+[[package]]
+name = "requests"
+version = "2.32.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "certifi" },
+    { name = "charset-normalizer" },
+    { name = "idna" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/requests-2.32.3.tar.gz", hash = "sha256:000000000000000000000000000000000000000000000000000000000000000a", size = 131218 }
+
+[[package]]
+name = "ruff"
+version = "0.8.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ruff-0.8.4.tar.gz", hash = "sha256:000000000000000000000000000000000000000000000000000000000000000b", size = 3313015 }
+
+[[package]]
+name = "tomli"
+version = "2.2.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/tomli-2.2.1.tar.gz", hash = "sha256:000000000000000000000000000000000000000000000000000000000000000c", size = 17175 }
+
+[[package]]
+name = "urllib3"
+version = "2.2.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/urllib3-2.2.3.tar.gz", hash = "sha256:000000000000000000000000000000000000000000000000000000000000000d", size = 300677 }
