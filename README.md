@@ -53,6 +53,7 @@ until you delete that folder.
 dva scan                       # scan the current folder
 dva scan C:\code\myapp        # scan another folder
 dva scan --html report.html --json report.json
+dva scan --json - > report.json  # print the JSON report instead of the summary
 dva scan --offline             # use only advisory data cached by earlier scans
 dva scan --no-vulnerabilities  # list dependencies without checking advisories
 dva scan --exclude tests/fixtures  # skip a folder (repeatable; */examples works too)

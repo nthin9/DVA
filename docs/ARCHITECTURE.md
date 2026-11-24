@@ -63,10 +63,12 @@ format to show that any adapter works with the engine.
 ## How a scan works
 
 1. Check the project folder and set limits on how much DVA will read.
-2. Walk the folder looking for dependency files. Folders like `node_modules`,
-   `.git` and virtual environments are skipped, and so are symlinks. Paths the
-   user excluded with `--exclude` are skipped too, and the result lists them,
-   so a report shows its coverage was limited on purpose.
+2. Walk the folder looking for dependency files. Folders like `node_modules`
+   and `.git` are skipped, and so are symlinks and environments of installed
+   packages: any folder with a `pyvenv.cfg` (a Python virtual environment,
+   whatever it is called) or a `conda-meta` folder (a conda environment).
+   Paths the user excluded with `--exclude` are skipped too, and the result
+   lists them, so a report shows its coverage was limited on purpose.
 3. Hand each file to the adapter that knows its format.
 4. The adapter parses the file and returns packages, versions and dependency
    relationships, plus notes about anything it couldn't handle.
