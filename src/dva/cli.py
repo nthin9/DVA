@@ -6,7 +6,8 @@ writes output. It contains no analysis logic.
 Exit codes of ``dva scan`` and ``dva rescan``:
 
 * 0: finished, nothing affected, and everything was checked.
-* 1: at least one package is affected by an advisory.
+* 1: at least one package is affected by an advisory that isn't an accepted
+  risk (with ``--fail-on``, one rated at that level or higher, or unrated).
 * 3: nothing affected was found, but the analysis or the check was incomplete.
 * 4: the scan couldn't run (for example, the folder doesn't exist).
 * 2: invalid command-line arguments (argparse's own code).
@@ -67,7 +68,7 @@ from dva.reporting.history import (
 )
 from dva.reporting.html import render_html
 from dva.reporting.json_report import render_json
-from dva.reporting.overview import clean_text
+from dva.reporting.overview import clean_text, group_findings, group_rank
 from dva.reporting.style import Style, colour_wanted
 from dva.reporting.text import render_brief, render_text
 from dva.storage.advisory_cache import SqliteAdvisoryCache
@@ -81,6 +82,9 @@ EXIT_CLEAN = 0
 EXIT_AFFECTED = 1
 EXIT_INCOMPLETE = 3
 EXIT_ERROR = 4
+
+#: ``--fail-on`` levels, least severe first; the index is the rank it needs.
+FAIL_LEVELS = ("any", "low", "moderate", "high", "critical")
 
 #: ``rescan --all`` reports the most serious outcome first in this order.
 _SEVERITY = (EXIT_ERROR, EXIT_AFFECTED, EXIT_INCOMPLETE, EXIT_CLEAN)
@@ -138,6 +142,13 @@ def _check_options(parser: argparse.ArgumentParser) -> None:
         "--no-vulnerabilities",
         action="store_true",
         help="only analyze dependencies; skip the vulnerability check",
+    )
+    parser.add_argument(
+        "--fail-on",
+        choices=FAIL_LEVELS,
+        default="any",
+        help="exit with 1 only for findings the advisory database rates at this level or "
+        "higher (default: any); advisories without a rating always count",
     )
     parser.add_argument(
         "--accept-file",
@@ -446,7 +457,7 @@ def _scan(args: argparse.Namespace) -> int:
     _write_reports(args, scan)
     if not args.quiet:
         _print_summary(args, scan)
-    return exit_code(scan)
+    return exit_code(scan, args.fail_on)
 
 
 def _store(database: sqlite3.Connection) -> SqliteHistoryStore:
@@ -609,7 +620,7 @@ def _rescan_one(
         print(f"Saved as scan #{result.record.id} of {clean_text(project.name)!r}.", file=notes)
         if result.comparison is not None:
             print(summary_line(project, result.comparison), file=notes)
-    return exit_code(result.scan)
+    return exit_code(result.scan, args.fail_on)
 
 
 def _history(args: argparse.Namespace) -> int:
@@ -709,10 +720,18 @@ def _when(value: datetime) -> str:
     return value.strftime("%Y-%m-%d %H:%M UTC")
 
 
-def exit_code(scan: ScanResult) -> int:
+def exit_code(scan: ScanResult, fail_on: str = "any") -> int:
+    """The exit code for a scan. ``fail_on`` sets the lowest database rating that
+    makes an unaccepted finding count; unrated advisories always count."""
     report = scan.vulnerabilities
-    if report is not None and any(unaccepted(c) for c in report.checks):
-        return EXIT_AFFECTED
+    if report is not None:
+        threshold = FAIL_LEVELS.index(fail_on)  # 0 for "any", up to 4 for "critical".
+        advisories = {a.id: a for a in report.advisories}
+        for check in report.checks:
+            for group in group_findings(tuple(unaccepted(check)), advisories):
+                rank = group_rank(group, advisories)
+                if rank == 0 or rank >= threshold:
+                    return EXIT_AFFECTED
     incomplete = scan.completion not in (
         CompletionState.COMPLETE,
         CompletionState.NO_SUPPORTED_FILES,
