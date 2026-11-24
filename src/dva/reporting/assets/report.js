@@ -157,6 +157,12 @@
       var aliases = a.aliases.filter(function (x) { return copies.indexOf(x) < 0; });
       if (aliases.length) { facts.appendChild(el("li", "Also known as: " + aliases.join(", "))); }
       if (copies.length) { facts.appendChild(el("li", "Also published as: " + copies.join(", "))); }
+      var acceptedBy = null;
+      group.forEach(function (f) { if (f.accepted && !acceptedBy) { acceptedBy = f.accepted; } });
+      if (acceptedBy) {
+        facts.appendChild(el("li", "Accepted risk: " + acceptedBy.reason +
+          (acceptedBy.until ? " (until " + acceptedBy.until + ")" : "")));
+      }
       var sev = [];
       if (a.database_severity) { sev.push(a.database_severity + " (rated by the database)"); }
       a.severities.forEach(function (s) { sev.push(s.type + " " + s.score); });

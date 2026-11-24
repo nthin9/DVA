@@ -118,6 +118,8 @@ def render_brief(scan: ScanResult, style: Style = PLAIN) -> str:
             name = f"{package_name(check)} {clean_text(check.version or '')}"
             upgrade = upgrade_text(check, advisories)
             suffix = f"; {upgrade}" if upgrade and check.upgrade_to else ""
+            if _fully_accepted(check):
+                suffix += "; accepted risk"
             lines.append(
                 f"  {style(name, 'bold')}: {_plural(total, 'advisory', 'advisories')} "
                 f"({_severity_counts(counts, style)}){suffix}"
@@ -210,9 +212,22 @@ def _vulnerabilities(scan: ScanResult, report: VulnerabilityReport, style: Style
     return lines
 
 
+def _fully_accepted(check: PackageCheck) -> bool:
+    return bool(check.findings) and all(f.accepted is not None for f in check.findings)
+
+
+def _accepted_line(group: Sequence[Finding]) -> str | None:
+    acceptance = next((f.accepted for f in group if f.accepted is not None), None)
+    if acceptance is None:
+        return None
+    until = f", until {acceptance.until}" if acceptance.until else ""
+    return f"accepted risk: {clean_text(acceptance.reason)}{until}"
+
+
 def _affected(check: PackageCheck, advisories: dict[str, Advisory], style: Style) -> list[str]:
     version = clean_text(check.version or "")
-    lines = [style(f"  {package_name(check)} {version}", "bold")]
+    suffix = " (accepted risk)" if _fully_accepted(check) else ""
+    lines = [style(f"  {package_name(check)} {version}{suffix}", "bold")]
     for group in group_findings(check.findings, advisories):
         finding, copies = group[0], group[1:]
         advisory = advisories[finding.advisory_id]
@@ -226,6 +241,9 @@ def _affected(check: PackageCheck, advisories: dict[str, Advisory], style: Style
         if copies:
             also = ", ".join(clean_text(f.advisory_id) for f in copies)
             lines.append(f"      also published as: {also}")
+        accepted = _accepted_line(group)
+        if accepted is not None:
+            lines.append(f"      {style(accepted, 'dim')}")
         if advisory.summary:
             lines.append(f"      {clean_text(advisory.summary)}")
         severity = _severity(advisory, group)
@@ -301,11 +319,21 @@ def _severity(advisory: Advisory, group: Sequence[Finding]) -> str:
 
 def _result_line(scan: ScanResult, style: Style = PLAIN) -> str:
     report = scan.vulnerabilities
-    affected = sum(1 for c in report.checks if c.status is CheckStatus.AFFECTED) if report else 0
+    checks = [c for c in report.checks if c.status is CheckStatus.AFFECTED] if report else []
+    accepted = sum(1 for c in checks if _fully_accepted(c))
+    affected = len(checks) - accepted
     vulns = scan.vulnerability_status
     analysis = _ANALYSIS[scan.completion]
+    also = f" ({accepted} more with only accepted risks)" if accepted else ""
     if affected:
-        headline = style(f"Result: {_plural(affected, 'affected package')} found.", "red", "bold")
+        headline = style(
+            f"Result: {_plural(affected, 'affected package')} found{also}.", "red", "bold"
+        )
+    elif accepted:
+        headline = style(
+            f"Result: {_plural(accepted, 'affected package')} found, all accepted risks.",
+            "yellow",
+        )
     elif vulns is VulnerabilityStatus.COMPLETE:
         headline = style("Result: no package matched a known advisory.", "green")
     elif vulns is VulnerabilityStatus.NOT_QUERIED:

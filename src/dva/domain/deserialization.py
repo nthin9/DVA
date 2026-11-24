@@ -11,9 +11,10 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import TypeVar
 
+from dva.domain.acceptance import Acceptance
 from dva.domain.advisory import (
     Advisory,
     AffectedPackage,
@@ -267,6 +268,19 @@ def _advisory(data: _Object) -> Advisory:
     )
 
 
+def _acceptance(data: _Object | None) -> Acceptance | None:
+    if data is None:
+        return None
+    until = data.optional_text("until")
+    try:
+        day = date.fromisoformat(until) if until is not None else None
+    except ValueError:
+        raise ReportFormatError("an acceptance has an invalid date") from None
+    return Acceptance(
+        data.text("advisory"), data.text("reason"), data.optional_text("package"), day
+    )
+
+
 def _check(data: _Object) -> PackageCheck:
     return PackageCheck(
         _identity_of(data),
@@ -283,6 +297,7 @@ def _check(data: _Object) -> PackageCheck:
                 f.texts("fixed_versions"),
                 f.texts("last_affected"),
                 _severities(f),
+                _acceptance(f.object("accepted")),
             )
             for f in data.objects("findings")
         ),

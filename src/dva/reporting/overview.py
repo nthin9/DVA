@@ -209,6 +209,7 @@ class Overview:
     direct_dependencies: int
     outcomes: dict[str, int]
     advisories: int
+    accepted_findings: int = 0
 
     @classmethod
     def of(cls, scan: ScanResult) -> Overview:
@@ -229,6 +230,11 @@ class Overview:
             direct_dependencies=direct,
             outcomes={status.value: outcomes.get(status.value, 0) for status in CheckStatus},
             advisories=len(report.advisories) if report else 0,
+            accepted_findings=sum(
+                1 for c in report.checks for f in c.findings if f.accepted is not None
+            )
+            if report
+            else 0,
         )
 
     def to_json(self) -> dict[str, JsonValue]:
@@ -240,4 +246,5 @@ class Overview:
             "direct_dependencies": self.direct_dependencies,
             "outcomes": dict(self.outcomes),
             "advisories": self.advisories,
+            "accepted_findings": self.accepted_findings,
         }

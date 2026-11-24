@@ -117,7 +117,11 @@ affected versions are copied from the advisory and are empty when the
 advisory doesn't give them; DVA never guesses a fix. `severities` lists the
 scores the advisory gives for this particular package (OSV allows a score per
 affected package instead of one for the whole advisory), in the same shape as
-an advisory's `severities`. It is usually empty.
+an advisory's `severities`. It is usually empty. `accepted` is `null`, or the
+accepted risk that covers this finding: `advisory` (the id or alias it was
+accepted under), `package` (or `null` for any package), `reason` and `until`
+(the last day it holds, or `null`). An accepted finding is still a finding,
+and the check is still `affected`.
 
 An **advisory** has `id`, `aliases` (CVE identifiers among them, when there
 are any), `related`, `summary`, `details`, `severities` (each with `type`
@@ -137,3 +141,4 @@ links), `affected` (each package with its ranges, versions and any
 | `direct_dependencies` | Packages the project depends on directly, according to its lockfiles |
 | `outcomes` | How many checks had each status |
 | `advisories` | How many distinct advisories matched |
+| `accepted_findings` | How many findings are covered by an accepted risk |

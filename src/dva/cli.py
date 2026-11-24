@@ -29,10 +29,16 @@ import sqlite3
 import sys
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 from dva import __version__
+from dva.application.acceptance import (
+    AcceptanceFileError,
+    apply_acceptances,
+    read_acceptance_file,
+    unaccepted,
+)
 from dva.application.analyze import InvalidProjectRootError, analyze_project
 from dva.application.history import (
     ProjectRootError,
@@ -44,10 +50,11 @@ from dva.application.history import (
 )
 from dva.application.vulnerabilities import check_vulnerabilities
 from dva.contracts.history import HistoryError
+from dva.domain.acceptance import Acceptance
 from dva.domain.deserialization import ReportFormatError, loads_scan
 from dva.domain.history import Project
 from dva.domain.scan import CompletionState, ScanResult
-from dva.domain.vulnerability import CheckStatus, VulnerabilityStatus
+from dva.domain.vulnerability import VulnerabilityStatus
 from dva.ecosystems.registry import default_registry
 from dva.intelligence.http import UrllibTransport
 from dva.intelligence.osv.source import OsvSource
@@ -133,6 +140,13 @@ def _check_options(parser: argparse.ArgumentParser) -> None:
         help="only analyze dependencies; skip the vulnerability check",
     )
     parser.add_argument(
+        "--accept-file",
+        metavar="FILE",
+        type=Path,
+        help="TOML file of accepted risks ([[accept]] advisory, reason, package, until); "
+        "they stay listed but don't fail the exit code",
+    )
+    parser.add_argument(
         "--include-private-registries",
         action="store_true",
         help="also look up packages from registries other than PyPI or the npm registry "
@@ -177,6 +191,21 @@ def build_parser() -> argparse.ArgumentParser:
     _data_dir_option(add)
     listing = actions.add_parser("list", help="list registered projects")
     _data_dir_option(listing)
+    accept = actions.add_parser(
+        "accept",
+        help="accept a reviewed risk for a project, or list or remove accepted risks",
+        description="Accepted findings stay in every report, marked as accepted, but no "
+        "longer fail the exit code. An advisory can be named by its id or any alias "
+        "(such as a CVE id). With --until, the acceptance ends after that day.",
+    )
+    accept.add_argument("name", help="the project's name")
+    accept.add_argument("advisory", nargs="?", help="advisory id or alias, e.g. CVE-2021-23337")
+    accept.add_argument("--reason", help="why the risk is accepted (required to accept)")
+    accept.add_argument("--package", help="only for this package")
+    accept.add_argument("--until", metavar="YYYY-MM-DD", help="last day the acceptance holds")
+    accept.add_argument("--list", action="store_true", help="list the project's accepted risks")
+    accept.add_argument("--remove", action="store_true", help="remove the acceptance instead")
+    _data_dir_option(accept)
     exclude = actions.add_parser(
         "exclude",
         help="show or change what a project's rescans skip",
@@ -403,12 +432,16 @@ def _scan(args: argparse.Namespace) -> int:
         return _error(f"{args.path!r} is not a folder")
     except ValueError as error:
         return _error(str(error))
+    try:
+        acceptances = _file_acceptances(args)
+    except _Failure as failure:
+        return _error(str(failure))
 
     if not args.no_vulnerabilities:
         with _database(args, "advisory cache") as database:
             check = _checker(args, database)
             if check is not None:
-                scan = check(scan)
+                scan = apply_acceptances(check(scan), acceptances, _today())
 
     _write_reports(args, scan)
     if not args.quiet:
@@ -441,6 +474,8 @@ def _project(args: argparse.Namespace) -> int:
             if project.excludes:
                 print(f"Rescans skip: {', '.join(clean_text(p) for p in project.excludes)}")
             print(f"Scan it with: dva rescan {clean_text(project.name)}")
+        elif args.action == "accept":
+            _accept(args, store, _find(store, args.name))
         elif args.action == "exclude":
             project = _find(store, args.name)
             if args.paths or args.clear:
@@ -475,6 +510,55 @@ def _project(args: argparse.Namespace) -> int:
     return EXIT_CLEAN
 
 
+def _accept(args: argparse.Namespace, store: SqliteHistoryStore, project: Project) -> None:
+    name = clean_text(project.name)
+    if args.list or args.advisory is None:
+        accepted = store.acceptances(project.id)
+        if not accepted:
+            print(f"{name!r} has no accepted risks.")
+        for item in accepted:
+            scope = f" for {clean_text(item.package)}" if item.package else ""
+            ends = f", until {item.until}" if item.until else ""
+            print(f"  {clean_text(item.advisory)}{scope}{ends}: {clean_text(item.reason)}")
+        return
+    if args.remove:
+        removed = store.unaccept(project.id, args.advisory, args.package)
+        print(f"Removed {removed} accepted risk(s) from {name!r}.")
+        return
+    if not args.reason:
+        raise _Failure("accepting a risk needs --reason")
+    try:
+        until = date.fromisoformat(args.until) if args.until else None
+        acceptance = Acceptance(args.advisory, args.reason, args.package, until)
+    except ValueError as error:
+        raise _Failure(f"can't accept that: {error}") from None
+    store.accept(project.id, acceptance, datetime.now(UTC))
+    print(f"Accepted {clean_text(acceptance.advisory)} for {name!r}; rescans will mark it.")
+
+
+def _file_acceptances(args: argparse.Namespace) -> tuple[Acceptance, ...]:
+    if args.accept_file is None:
+        return ()
+    try:
+        return read_acceptance_file(args.accept_file)
+    except AcceptanceFileError as error:
+        raise _Failure(f"{str(args.accept_file)!r}: {error}") from None
+
+
+def _today() -> date:
+    return datetime.now(UTC).date()
+
+
+def _with_acceptances(
+    check: Callable[[ScanResult], ScanResult] | None, accepted: Sequence[Acceptance]
+) -> Callable[[ScanResult], ScanResult] | None:
+    """The vulnerability check followed by marking accepted risks."""
+    if check is None or not accepted:
+        return check
+    inner = check
+    return lambda scan: apply_acceptances(inner(scan), accepted, _today())
+
+
 def _rescan(args: argparse.Namespace) -> int:
     with _database(args, "DVA database") as database:
         store = _store(database)
@@ -482,11 +566,14 @@ def _rescan(args: argparse.Namespace) -> int:
         if not projects:
             raise _Failure("no projects are registered (see: dva project add)")
         check = _checker(args, database)
+        from_file = _file_acceptances(args)
         codes = []
         for project in projects:
             if args.all and not args.quiet:
                 print(f"=== {clean_text(project.name)} ===")
-            codes.append(_rescan_one(args, store, project, check))
+            accepted = (*store.acceptances(project.id), *from_file)
+            checked = _with_acceptances(check, accepted)
+            codes.append(_rescan_one(args, store, project, checked))
             if args.all and not args.quiet:
                 print()
     return next(code for code in _SEVERITY if code in codes)
@@ -624,7 +711,7 @@ def _when(value: datetime) -> str:
 
 def exit_code(scan: ScanResult) -> int:
     report = scan.vulnerabilities
-    if report is not None and any(c.status is CheckStatus.AFFECTED for c in report.checks):
+    if report is not None and any(unaccepted(c) for c in report.checks):
         return EXIT_AFFECTED
     incomplete = scan.completion not in (
         CompletionState.COMPLETE,

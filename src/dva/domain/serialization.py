@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 
+from dva.domain.acceptance import Acceptance
 from dva.domain.advisory import Advisory, AffectedPackage, Severity
 from dva.domain.dependency import DeclaredRequirement, DependencyEdge, ResolvedPackage
 from dva.domain.diagnostics import Diagnostic
@@ -194,6 +195,17 @@ def _location_key(location: Location) -> tuple[str, str, int]:
     return (location.path, location.node_id or "", location.line or 0)
 
 
+def _acceptance(acceptance: Acceptance | None) -> JsonValue:
+    if acceptance is None:
+        return None
+    return {
+        "advisory": acceptance.advisory,
+        "package": acceptance.package,
+        "reason": acceptance.reason,
+        "until": acceptance.until.isoformat() if acceptance.until else None,
+    }
+
+
 def _check(check: PackageCheck) -> dict[str, JsonValue]:
     return {
         "identity": _identity(check.identity),
@@ -207,6 +219,7 @@ def _check(check: PackageCheck) -> dict[str, JsonValue]:
                 "fixed_versions": _strings(f.fixed_versions),
                 "last_affected": _strings(f.last_affected),
                 "severities": _severity_list(f.severities),
+                "accepted": _acceptance(f.accepted),
             }
             for f in sorted(check.findings, key=lambda f: f.advisory_id)
         ],
