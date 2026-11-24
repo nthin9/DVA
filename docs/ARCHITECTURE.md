@@ -3,10 +3,10 @@
 DVA is a single Python package. It isn't split into services, because it's a
 local tool with one user at a time and a split would add moving parts without
 buying anything. The code is still divided into layers with clear jobs, so the
-CLI, the planned desktop app, and the tests all drive the same engine.
+CLI, the planned desktop applications, and the tests all drive the same engine.
 
 ```text
-   CLI (now)            Desktop app (planned)
+   CLI (now)            Desktop app (v2.0)
        |                          |
        +------------+-------------+
                     |
@@ -30,8 +30,7 @@ CLI, the planned desktop app, and the tests all drive the same engine.
 
 ## Code layout
 
-The folders marked "built" exist today. The others are planned and get added
-when the work that needs them starts:
+Every layer exists today:
 
 ```text
 src/dva/
@@ -250,7 +249,7 @@ which validate them, so a damaged or edited database gives an error rather
 than a wrong comparison.
 
 The application layer talks to this through a small history interface in
-`contracts/`, so a future desktop app can use the same code. Comparing two
+`contracts/`, so the v2.0 desktop front end can use the same code. Comparing two
 scans is a pure function of their saved data in `application/history.py`.
 It never treats a finding that the newer scan couldn't check as resolved.
 How comparisons are worded for users is described in
@@ -293,11 +292,12 @@ only ever inserts text with `textContent`. Links are only created for
 `http(s)` URLs. A Content Security Policy allows exactly the page's own two
 inline scripts (by their SHA-256 hashes) and no network requests at all.
 
-## A desktop app later
+## Desktop applications
 
-A GUI isn't part of the first release, but it is the next major step after it
-(see the [Roadmap](ROADMAP.md)): a standalone desktop application that
-becomes the main way to use DVA, with the CLI kept for scripts and CI. It
-will call the same application layer as the CLI, so scanning, matching,
-history and comparison aren't written twice. The UI toolkit and the way it is
-packaged will be chosen when that work starts.
+The command line stays the main interface up to v1.0. The
+[Roadmap](ROADMAP.md) then adds a desktop front end in v2.0 and a complete
+graphical application in v3.0. Both call the same application layer as the
+CLI (`application/`, through the interfaces in `contracts/`), so scanning,
+matching, history and comparison are never written twice. The UI toolkit
+will be chosen with a prototype at the start of v2.0, against the
+requirements listed in the roadmap.

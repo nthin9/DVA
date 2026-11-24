@@ -6,7 +6,11 @@ vulnerability advisories. Everything runs on your own machine.
 
 ## Status
 
-DVA is in early development. The engine can find and read a project's Python
+DVA is pre-1.0: it works, but commands and report fields can still change
+between 0.x releases. Version 1.0 will be the stable command-line tool; the
+[Roadmap](docs/ROADMAP.md) lists what each release adds.
+
+Today the engine finds and reads a project's Python
 dependency files (`requirements.txt` files, `pyproject.toml`, `uv.lock` and
 `poetry.lock`) and npm dependency files (`package.json`, `package-lock.json`
 and `npm-shrinkwrap.json`), including the full dependency tree from a
@@ -20,9 +24,8 @@ history that can be compared. See
 
 ## Install
 
-You need Python 3.12 or newer. DVA isn't on PyPI yet (when it is, the package
-will be called `dvanalysis`, since `dva` is taken), so install it straight
-from GitHub with [uv](https://docs.astral.sh/uv/) or
+You need Python 3.12 or newer. Releases before v1.0 are published on GitHub
+only, not on PyPI, so install DVA straight from GitHub with [uv](https://docs.astral.sh/uv/) or
 [pipx](https://pipx.pypa.io/), which put the `dva` command on your PATH in
 its own environment:
 
@@ -41,7 +44,8 @@ Check that it works with `dva --version`. If the command isn't found, the
 tool folder isn't on your PATH yet: run `uv tool update-shell` (or
 `pipx ensurepath`) and open a new terminal.
 
-To update later, run `uv tool upgrade dvanalysis` (or
+The installed package is called `dvanalysis` (the command is `dva`). To
+update later, run `uv tool upgrade dvanalysis` (or
 `pipx upgrade dvanalysis`). To remove it, run `uv tool uninstall dvanalysis`
 (or `pipx uninstall dvanalysis`). Your registered projects, scan history and
 advisory cache stay in your data folder (`%LOCALAPPDATA%\DVA` on Windows)
@@ -102,25 +106,38 @@ Advisory data and scan history are kept in `%LOCALAPPDATA%\DVA` on Windows (else
 [Architecture](docs/ARCHITECTURE.md#storage)). Use `--data-dir` or the
 `DVA_DATA_DIR` environment variable to put them somewhere else.
 
-## What it will do
+## What it does
 
-The first release is aimed at Python and npm projects on Windows (Linux and
-macOS should work too, but Windows is the main target).
+DVA covers Python and JavaScript (npm) projects. Windows is the main
+platform; Linux is tested on every change too.
 
-- Find the dependency files in a project, such as `requirements.txt`,
-  `pyproject.toml`, `package.json` and `package-lock.json`. The exact list of
-  supported formats is in [Supported formats](docs/SUPPORTED_FORMATS.md) and
-  grows as each one is implemented and tested.
-- Tell apart the dependencies you declared yourself from the ones they pull in,
-  and show the path that leads to each one.
-- Look up the exact versions in [OSV](https://osv.dev), keep a local cache, and
-  fall back to that cache when you're offline.
-- Show what each advisory says: its ID and aliases (CVE when there is one),
-  which versions are affected, severity, references, and a fixed version if the
-  advisory gives one.
-- Keep a history of scans in a local SQLite database so you can compare a
-  project over time.
-- Export a JSON report and a standalone HTML dependency graph that works offline.
+- Finds the dependency files in a project, such as `requirements.txt`,
+  `pyproject.toml`, `package.json` and `package-lock.json`. The exact list is
+  in [Supported formats](docs/SUPPORTED_FORMATS.md).
+- Tells apart the dependencies you declared yourself from the ones they pull
+  in, and shows which direct dependency pulls each one in.
+- Looks up the exact versions in [OSV](https://osv.dev), keeps a local cache,
+  and falls back to that cache when you're offline.
+- Shows what each advisory says: its ID and aliases (CVE when there is one),
+  which versions are affected, the severity as published, references, and the
+  fixed version, plus the lowest upgrade that clears every listed advisory.
+- Keeps a history of scans in a local SQLite database, so you can compare a
+  project over time, and lets a team record accepted risks.
+- Exports a JSON report and a standalone HTML report with a dependency graph
+  that works offline.
+
+## Where it's going
+
+- **0.x releases** finish the command-line tool. They add a settings file,
+  shell completion, private registry settings, target platforms, monorepos,
+  the remaining Python and JavaScript lockfiles, and fully offline scans.
+- **1.0** is the stable command-line tool.
+- **1.1** adds Java (Maven and Gradle); later 1.x releases add more ecosystems.
+- **2.0** is a desktop front end for the same engine, and **3.0** a complete
+  graphical application.
+
+Details and the definition of done for each release are in the
+[Roadmap](docs/ROADMAP.md).
 
 ## What it won't do
 
@@ -144,7 +161,7 @@ macOS should work too, but Windows is the main target).
 - [Projects and scan history](docs/HISTORY.md): registering, rescanning and comparing
 - [Roadmap](docs/ROADMAP.md): what's planned and in what order
 - [Threat model](docs/THREAT_MODEL.md): what DVA defends against and its known limits
-- [Limitations](docs/LIMITATIONS.md): everything DVA doesn't do yet, in one place
+- [Limitations](docs/LIMITATIONS.md): everything DVA doesn't do yet, and which release addresses it
 - [Design decisions](docs/DECISIONS.md): the main choices and why they were made
 
 ## Development setup
