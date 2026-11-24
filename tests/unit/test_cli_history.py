@@ -368,3 +368,19 @@ def test_a_locked_database_is_a_clear_error(
         assert "in use by another DVA command" in capsys.readouterr().err
     finally:
         other.close()
+
+
+def test_json_dash_prints_only_the_report(
+    tmp_path: Path, data: list[str], fake_osv: FakeOsvTransport, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = app(tmp_path)
+    assert main(["scan", str(root), "--json", "-", *data]) == EXIT_AFFECTED
+    out = capsys.readouterr().out
+    assert json.loads(out)["schema_version"] == "dva.report/1"
+    assert not (Path.cwd() / "-").exists()
+    main(["project", "add", str(root), *data])
+    capsys.readouterr()
+    main(["rescan", "app", "--json", "-", *data])
+    captured = capsys.readouterr()
+    assert json.loads(captured.out)["project_name"] == "app"
+    assert "Saved as scan #1" in captured.err

@@ -38,6 +38,13 @@ EXCLUDED_DIR_NAMES: frozenset[str] = frozenset(
     }
 )
 _EXCLUDED_FOLDED = frozenset(name.casefold() for name in EXCLUDED_DIR_NAMES)
+#: Files that mark a folder as an environment of installed packages, whatever
+#: the folder is called: a Python virtual environment, or a conda environment.
+ENVIRONMENT_MARKERS = ("pyvenv.cfg", "conda-meta")
+
+
+def _is_environment(directory: str) -> bool:
+    return any(os.path.exists(os.path.join(directory, marker)) for marker in ENVIRONMENT_MARKERS)
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,7 +134,7 @@ def discover(root: Path, registry: AdapterRegistry, limits: ScanLimits) -> Disco
                         )
                     continue
                 if entry.is_dir(follow_symlinks=False):
-                    if entry.name.casefold() in _EXCLUDED_FOLDED:
+                    if entry.name.casefold() in _EXCLUDED_FOLDED or _is_environment(entry.path):
                         continue
                     if depth + 1 > limits.max_depth:
                         diagnostics.append(

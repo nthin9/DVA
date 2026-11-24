@@ -97,7 +97,12 @@ def _data_dir_option(parser: argparse.ArgumentParser) -> None:
 
 
 def _check_options(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--json", metavar="FILE", type=Path, help="also write a JSON report")
+    parser.add_argument(
+        "--json",
+        metavar="FILE",
+        type=Path,
+        help="also write a JSON report ('-' prints it instead of the summary)",
+    )
     parser.add_argument("--html", metavar="FILE", type=Path, help="also write an HTML report")
     lookups = parser.add_mutually_exclusive_group()
     lookups.add_argument(
@@ -308,9 +313,18 @@ def _checker(
     )
 
 
+def _to_stdout(path: Path | None) -> bool:
+    return path is not None and str(path) == "-"
+
+
 def _write_reports(args: argparse.Namespace, scan: ScanResult) -> None:
     for path, render in ((args.json, render_json), (args.html, render_html)):
         if path is None:
+            continue
+        if _to_stdout(path):
+            # Escape non-ASCII on the screen, as for saved reports: same JSON data.
+            text = json.dumps(json.loads(render(scan)), ensure_ascii=True, indent=2)
+            sys.stdout.write(text + "\n")
             continue
         try:
             path.write_text(render(scan), encoding="utf-8")
@@ -319,6 +333,8 @@ def _write_reports(args: argparse.Namespace, scan: ScanResult) -> None:
 
 
 def _print_summary(args: argparse.Namespace, scan: ScanResult) -> None:
+    if _to_stdout(args.json):
+        return  # The JSON report is the output.
     sys.stdout.write(render_text(scan))
     for label, path in (("JSON report", args.json), ("HTML report", args.html)):
         if path is not None:
@@ -422,9 +438,11 @@ def _rescan_one(
     _write_reports(args, result.scan)
     if not args.quiet:
         _print_summary(args, result.scan)
-        print(f"Saved as scan #{result.record.id} of {clean_text(project.name)!r}.")
+        # With --json -, standard output holds only the JSON report.
+        notes = sys.stderr if _to_stdout(args.json) else sys.stdout
+        print(f"Saved as scan #{result.record.id} of {clean_text(project.name)!r}.", file=notes)
         if result.comparison is not None:
-            print(summary_line(project, result.comparison))
+            print(summary_line(project, result.comparison), file=notes)
     return exit_code(result.scan)
 
 

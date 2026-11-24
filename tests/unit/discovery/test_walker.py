@@ -155,3 +155,17 @@ def test_entry_limit_applies_within_one_large_directory(tmp_path: Path) -> None:
     make(tmp_path, "example-deps.txt")
     result = discover(tmp_path, registry(), ScanLimits(max_entries=10))
     assert codes(result) == ["discovery.entry_limit"]
+
+
+def test_environments_are_skipped_whatever_they_are_called(tmp_path: Path) -> None:
+    from dva.application.analyze import analyze_project
+    from dva.ecosystems.registry import default_registry
+
+    for name, marker in (("env", "pyvenv.cfg"), ("py312", "pyvenv.cfg"), ("conda", "conda-meta")):
+        folder = tmp_path / name
+        folder.mkdir()
+        (folder / marker).mkdir() if marker == "conda-meta" else (folder / marker).write_text("")
+        (folder / "requirements.txt").write_text("x==1\n", encoding="utf-8")
+    (tmp_path / "requirements.txt").write_text("y==1\n", encoding="utf-8")
+    scan = analyze_project(tmp_path, default_registry())
+    assert [m.path for m in scan.manifests] == ["requirements.txt"]
