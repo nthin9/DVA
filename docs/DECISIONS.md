@@ -46,13 +46,19 @@ Projects, scan history and the advisory cache are stored in a single SQLite
 file. It needs no server, ships with Python, and is more than enough for one
 user. Syncing between machines isn't planned.
 
-## 6. Start with no runtime dependencies
+## 6. As few runtime dependencies as possible
 
-The first version uses only the standard library: `argparse` for the CLI,
-`dataclasses` for the data model, `json` for output. Each dependency is
-something to install, update and trust, which matters for a security tool. A
-library gets added when there's a concrete need for it, for example an HTTP
-client or a version parser.
+DVA started out with only the standard library: `argparse` for the CLI,
+`dataclasses` for the data model, `json` and `tomllib` for reading and writing
+data. Each dependency is something to install, update and trust, which matters
+for a security tool. A library gets added only when there's a concrete need.
+
+The first one is [`packaging`](https://packaging.pypa.io/), maintained by the
+Python Packaging Authority. It is the reference implementation of the
+standards for Python requirement strings and version numbers, has no
+dependencies of its own, and is what pip itself uses. Writing our own parser
+for those grammars would be easy to get subtly wrong, and the same library
+will be needed for comparing Python versions against advisories.
 
 For development, the project uses uv with a lockfile, Ruff for linting and
 formatting, mypy in strict mode, and pytest. CI runs on Windows and Ubuntu with

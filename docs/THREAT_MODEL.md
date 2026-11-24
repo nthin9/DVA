@@ -31,7 +31,8 @@ are, and how each risk is handled.
 |---|---|
 | A crafted dependency file crashes the parser or uses up memory | Limits on file size, folder depth and the number of files; malformed input is reported as a problem with that file and the scan carries on |
 | A file reference or symlink points outside the project | Paths are resolved and checked against the project folder; symlinks are not followed |
-| Scanning runs code from the project | DVA never runs install scripts, build steps or package managers |
+| Scanning runs code from the project | DVA never runs install scripts, build steps or package managers. Files that can only be understood by running them, such as `setup.py`, are reported as unsupported |
+| Credentials in dependency files leak into results | Tokens and passwords in URLs are removed before anything is stored, environment variables in requirements files are never expanded, and option values such as private index URLs are not copied into messages |
 | XML or YAML parsing is abused (external entities, unsafe tags) | Safe parser settings only, if and when those formats are added |
 | A tampered or broken response from OSV | HTTPS only, timeouts, response size limits, and validation of the response before use |
 | A network failure is read as "nothing found" | Failed lookups are reported as failed, and cached results are shown with their age |

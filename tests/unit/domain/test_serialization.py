@@ -4,7 +4,12 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
-from dva.domain.dependency import DeclaredRequirement, DependencyEdge, ResolvedPackage
+from dva.domain.dependency import (
+    DeclaredRequirement,
+    DependencyEdge,
+    ResolvedPackage,
+    SourceKind,
+)
 from dva.domain.diagnostics import Diagnostic, DiagnosticLevel
 from dva.domain.identity import PackageIdentity
 from dva.domain.manifest import ManifestAnalysis, ManifestKind, ParseStatus
@@ -31,19 +36,32 @@ def build_scan(*, reverse: bool = False) -> ScanResult:
         requirements=order(
             (
                 DeclaredRequirement(alpha, constraint="==1.0", line=1, groups=("dev", "a")),
-                DeclaredRequirement(beta, constraint="==2.0", line=2),
+                DeclaredRequirement(
+                    beta,
+                    constraint="==2.0",
+                    line=2,
+                    source=SourceKind.REGISTRY,
+                    extras=("zeta", "eta"),
+                    alias="b",
+                ),
             )
         ),
         packages=order(
             (
                 ResolvedPackage("alpha@1.0", alpha, "1.0"),
-                ResolvedPackage("bêta@2.0", beta, "2.0"),
+                ResolvedPackage("bêta@2.0", beta, "2.0", source=SourceKind.REGISTRY),
             )
         ),
         edges=order(
             (
                 DependencyEdge(None, "alpha@1.0"),
-                DependencyEdge("alpha@1.0", "bêta@2.0", constraint=">=2"),
+                DependencyEdge(
+                    "alpha@1.0",
+                    "bêta@2.0",
+                    constraint=">=2",
+                    markers='os_name == "nt"',
+                    groups=("dev",),
+                ),
             )
         ),
         diagnostics=order(
@@ -114,6 +132,36 @@ def test_edges_record_directness() -> None:
     lock = edges[1]
     assert isinstance(lock, dict)
     assert lock["edges"] == [
-        {"parent_id": None, "child_id": "alpha@1.0", "direct": True, "constraint": None},
-        {"parent_id": "alpha@1.0", "child_id": "bêta@2.0", "direct": False, "constraint": ">=2"},
+        {
+            "parent_id": None,
+            "child_id": "alpha@1.0",
+            "direct": True,
+            "constraint": None,
+            "markers": None,
+            "groups": [],
+        },
+        {
+            "parent_id": "alpha@1.0",
+            "child_id": "bêta@2.0",
+            "direct": False,
+            "constraint": ">=2",
+            "markers": 'os_name == "nt"',
+            "groups": ["dev"],
+        },
     ]
+
+
+def test_requirements_and_packages_record_source_extras_and_alias() -> None:
+    manifests = scan_to_dict(build_scan())["manifests"]
+    assert isinstance(manifests, list)
+    lock = manifests[1]
+    assert isinstance(lock, dict)
+    requirements = lock["requirements"]
+    assert isinstance(requirements, list)
+    alpha, beta = requirements
+    assert isinstance(alpha, dict) and isinstance(beta, dict)
+    assert (alpha["source"], alpha["extras"], alpha["alias"]) == ("unknown", [], None)
+    assert (beta["source"], beta["extras"], beta["alias"]) == ("registry", ["eta", "zeta"], "b")
+    packages = lock["packages"]
+    assert isinstance(packages, list)
+    assert [p["source"] for p in packages if isinstance(p, dict)] == ["unknown", "registry"]

@@ -45,12 +45,18 @@
           "child_id": "alpha@1.0",
           "constraint": null,
           "direct": true,
+          "groups": [],
+          "markers": null,
           "parent_id": null
         },
         {
           "child_id": "bêta@2.0",
           "constraint": ">=2",
           "direct": false,
+          "groups": [
+            "dev"
+          ],
+          "markers": "os_name == \"nt\"",
           "parent_id": "alpha@1.0"
         }
       ],
@@ -67,6 +73,7 @@
             "purl": "pkg:example/alpha"
           },
           "node_id": "alpha@1.0",
+          "source": "unknown",
           "version": "1.0"
         },
         {
@@ -78,13 +85,16 @@
             "purl": null
           },
           "node_id": "bêta@2.0",
+          "source": "registry",
           "version": "2.0"
         }
       ],
       "path": "sub/example-deps.txt",
       "requirements": [
         {
+          "alias": null,
           "constraint": "==1.0",
+          "extras": [],
           "groups": [
             "a",
             "dev"
@@ -96,10 +106,16 @@
             "purl": "pkg:example/alpha"
           },
           "line": 1,
-          "markers": null
+          "markers": null,
+          "source": "unknown"
         },
         {
+          "alias": "b",
           "constraint": "==2.0",
+          "extras": [
+            "eta",
+            "zeta"
+          ],
           "groups": [],
           "identity": {
             "ecosystem": "example",
@@ -108,14 +124,15 @@
             "purl": null
           },
           "line": 2,
-          "markers": null
+          "markers": null,
+          "source": "registry"
         }
       ],
       "status": "partial"
     }
   ],
   "project_name": "demo",
-  "schema_version": "dva.internal-scan/0",
+  "schema_version": "dva.internal-scan/1",
   "started_at": "2026-01-02T03:04:05.000000Z",
   "tool_version": "0.0.1",
   "vulnerability_status": "not_queried"

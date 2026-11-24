@@ -66,7 +66,7 @@ def test_project_without_supported_files_is_not_reported_complete(tmp_path: Path
     assert result.completion is CompletionState.NO_SUPPORTED_FILES
 
 
-def test_default_registry_currently_finds_nothing(tmp_path: Path) -> None:
+def test_default_registry_ignores_files_no_builtin_adapter_claims(tmp_path: Path) -> None:
     write(tmp_path, "example-deps.txt", "alpha==1.0\n")
     result = analyze_project(tmp_path, default_registry())
     assert result.completion is CompletionState.NO_SUPPORTED_FILES

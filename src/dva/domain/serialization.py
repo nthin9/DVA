@@ -21,7 +21,7 @@ from dva.domain.identity import PackageIdentity
 from dva.domain.manifest import ManifestAnalysis
 from dva.domain.scan import ScanResult
 
-SCHEMA_VERSION = "dva.internal-scan/0"
+SCHEMA_VERSION = "dva.internal-scan/1"
 
 type JsonValue = str | int | bool | None | list[JsonValue] | dict[str, JsonValue]
 
@@ -64,11 +64,24 @@ def _requirement(requirement: DeclaredRequirement) -> dict[str, JsonValue]:
         "markers": requirement.markers,
         "groups": [g for g in sorted(requirement.groups)],
         "line": requirement.line,
+        "source": requirement.source.value,
+        "extras": [e for e in sorted(requirement.extras)],
+        "alias": requirement.alias,
     }
 
 
-def _requirement_key(r: DeclaredRequirement) -> tuple[int, tuple[str, str, str, str], str, str]:
-    return (r.line or 0, _identity_key(r.identity), r.constraint or "", r.markers or "")
+def _requirement_key(
+    r: DeclaredRequirement,
+) -> tuple[int, tuple[str, str, str, str], str, str, str, tuple[str, ...], str]:
+    return (
+        r.line or 0,
+        _identity_key(r.identity),
+        r.constraint or "",
+        r.markers or "",
+        r.alias or "",
+        tuple(sorted(r.groups)),
+        r.source.value,
+    )
 
 
 def _package(package: ResolvedPackage) -> dict[str, JsonValue]:
@@ -77,6 +90,7 @@ def _package(package: ResolvedPackage) -> dict[str, JsonValue]:
         "identity": _identity(package.identity),
         "version": package.version,
         "groups": [g for g in sorted(package.groups)],
+        "source": package.source.value,
     }
 
 
@@ -86,6 +100,8 @@ def _edge(edge: DependencyEdge) -> dict[str, JsonValue]:
         "child_id": edge.child_id,
         "direct": edge.is_direct,
         "constraint": edge.constraint,
+        "markers": edge.markers,
+        "groups": [g for g in sorted(edge.groups)],
     }
 
 
@@ -93,7 +109,14 @@ def _manifest(manifest: ManifestAnalysis) -> dict[str, JsonValue]:
     requirements = sorted(manifest.requirements, key=_requirement_key)
     packages = sorted(manifest.packages, key=lambda p: p.node_id)
     edges = sorted(
-        manifest.edges, key=lambda e: (e.parent_id or "", e.child_id, e.constraint or "")
+        manifest.edges,
+        key=lambda e: (
+            e.parent_id or "",
+            e.child_id,
+            e.constraint or "",
+            e.markers or "",
+            tuple(sorted(e.groups)),
+        ),
     )
     return {
         "path": manifest.path,

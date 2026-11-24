@@ -1,6 +1,6 @@
 """Behaviour every ecosystem adapter must satisfy.
 
-Runs against every built-in adapter in ``default_registry()`` (none yet) and
+Runs against every built-in adapter in ``default_registry()`` and
 against the test-only example adapter, which proves the checks themselves
 work. New adapters are covered automatically once they are registered.
 """
