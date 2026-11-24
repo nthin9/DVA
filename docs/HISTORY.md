@@ -87,7 +87,9 @@ findings.
 
 ## Exit codes
 
-`rescan` uses the same exit codes as `scan` (see the README). With `--all`
+`rescan` uses the same exit codes as `scan` (see the README), including
+`--fail-on` (for example `--fail-on high`, so only findings the database rates
+high or critical, or doesn't rate at all, give exit code 1) and accepted risks. With `--all`
 it returns the most serious result across all projects, in the order 4, 1,
 3, 0. `compare` returns 1 when the newer scan reports a finding the older one
 didn't, and 0 otherwise. Every command returns 4 on an error, such as an

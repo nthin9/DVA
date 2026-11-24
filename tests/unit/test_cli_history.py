@@ -470,3 +470,13 @@ def test_accepted_risks_from_a_file_and_a_project(
     assert "Removed 1" in capsys.readouterr().out
     assert main(["rescan", "app", "--quiet", *data]) == EXIT_AFFECTED
     assert main(["project", "accept", "app", "X", "--reason", "r", "--until", "soon", *data]) == 4
+
+
+def test_fail_on_option(tmp_path: Path, data: list[str], fake_osv: FakeOsvTransport) -> None:
+    root = app(tmp_path)  # lodash 4.17.20: one HIGH advisory.
+    assert main(["scan", str(root), "--quiet", "--fail-on", "high", *data]) == EXIT_AFFECTED
+    assert main(["scan", str(root), "--quiet", "--fail-on", "critical", *data]) == EXIT_CLEAN
+    main(["project", "add", str(root), *data])
+    assert main(["rescan", "app", "--quiet", "--fail-on", "critical", *data]) == EXIT_CLEAN
+    with pytest.raises(SystemExit):
+        main(["scan", str(root), "--fail-on", "severe"])
