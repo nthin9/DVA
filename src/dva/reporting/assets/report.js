@@ -174,6 +174,16 @@
       } else {
         facts.appendChild(el("li", "No fixed version given by the advisory"));
       }
+      if (check.upgrade_to) {
+        var count = groupFindings(check.findings).length;  // copies count once
+        facts.appendChild(el("li", "Upgrade to " + check.upgrade_to + " clears " +
+          (count === 1 ? "the advisory" : "all " + count + " advisories") + " listed here"));
+      } else if (check.upgrade_note) {
+        facts.appendChild(el("li", "No single upgrade to suggest: " + check.upgrade_note));
+      }
+      (check.introduced_by || []).forEach(function (chain) {
+        facts.appendChild(el("li", chain.length ? "Pulled in by: " + chain.join(" > ") : "A direct dependency"));
+      });
       facts.appendChild(el("li", "Found in: " + check.locations.map(function (l) { return l.path; }).join(", ")));
       box.appendChild(facts);
       if (a.details) {

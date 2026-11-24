@@ -23,6 +23,7 @@ from dva.domain.manifest import ManifestKind
 from dva.domain.scan import ScanResult
 from dva.domain.serialization import JsonValue, scan_to_dict
 from dva.domain.vulnerability import CheckStatus
+from dva.reporting.json_report import add_introduced_by
 from dva.reporting.overview import Overview
 
 _PLACEHOLDER = re.compile(r"\{\{([A-Z]+)\}\}")
@@ -121,6 +122,7 @@ def graph_data(scan: ScanResult) -> dict[str, JsonValue]:
 def render_html(scan: ScanResult) -> str:
     data = scan_to_dict(scan)
     data["overview"] = Overview.of(scan).to_json()
+    add_introduced_by(scan, data)
     data["graph"] = graph_data(scan)
     data["statuses"] = [status.value for status in CheckStatus]
 

@@ -30,6 +30,8 @@ from dva.reporting.overview import (
     findings_by_severity,
     group_findings,
     group_rank,
+    introduced_by,
+    package_groups,
     package_name,
     severity_name,
 )
@@ -96,7 +98,7 @@ def render_text(scan: ScanResult, style: Style = PLAIN) -> str:
     if report is None:
         lines.append("Vulnerabilities: not checked (the scan ran without a vulnerability lookup)")
     else:
-        lines += _vulnerabilities(report, style)
+        lines += _vulnerabilities(scan, report, style)
     lines += ["", _result_line(scan, style)]
     if report is not None:
         lines += ["", _DISCLAIMER]
@@ -114,9 +116,11 @@ def render_brief(scan: ScanResult, style: Style = PLAIN) -> str:
             counts = findings_by_severity([check], advisories)
             total = sum(counts.values())
             name = f"{package_name(check)} {clean_text(check.version or '')}"
+            upgrade = upgrade_text(check, advisories)
+            suffix = f"; {upgrade}" if upgrade and check.upgrade_to else ""
             lines.append(
                 f"  {style(name, 'bold')}: {_plural(total, 'advisory', 'advisories')} "
-                f"({_severity_counts(counts, style)})"
+                f"({_severity_counts(counts, style)}){suffix}"
             )
         unsure = sum(
             1
@@ -152,7 +156,7 @@ def _files(scan: ScanResult, overview: Overview) -> list[str]:
     return lines
 
 
-def _vulnerabilities(report: VulnerabilityReport, style: Style) -> list[str]:
+def _vulnerabilities(scan: ScanResult, report: VulnerabilityReport, style: Style) -> list[str]:
     source = report.provider.upper()
     data = {
         "live": f"live data, retrieved {_when(report.checked_at)}",
@@ -183,8 +187,10 @@ def _vulnerabilities(report: VulnerabilityReport, style: Style) -> list[str]:
 
     if affected:
         lines.append("")
+        paths = introduced_by(scan)
         for check in affected:
             lines += _affected(check, advisories, style)
+            lines += _context(scan, check, advisories, paths, style)
     for status, title in (
         (CheckStatus.UNKNOWN, "Could not decide"),
         (CheckStatus.LOOKUP_FAILED, "Lookup failed"),
@@ -235,6 +241,45 @@ def _affected(check: PackageCheck, advisories: dict[str, Advisory], style: Style
             lines.append(f"      no fixed version given (last affected: {last})")
         else:
             lines.append("      no fixed version given by the advisory")
+    return lines
+
+
+def upgrade_text(check: PackageCheck, advisories: dict[str, Advisory]) -> str | None:
+    """What the advisories say about upgrading, in one phrase. Copies of one
+    vulnerability published by several databases count once."""
+    count = len(group_findings(check.findings, advisories))
+    if check.upgrade_to is not None:
+        target = clean_text(check.upgrade_to)
+        listed = "the advisory" if count == 1 else f"all {count} advisories"
+        return f"upgrade to {target} clears {listed} listed here"
+    if check.upgrade_note is not None:
+        return f"no single upgrade to suggest: {clean_text(check.upgrade_note)}"
+    return None
+
+
+def _context(
+    scan: ScanResult,
+    check: PackageCheck,
+    advisories: dict[str, Advisory],
+    paths: dict[tuple[str, str], list[str]],
+    style: Style,
+) -> list[str]:
+    lines = []
+    upgrade = upgrade_text(check, advisories)
+    if upgrade is not None and check.upgrade_to is not None:
+        upgrade += f"; OSV lists no advisory affecting {clean_text(check.upgrade_to)}"
+    if upgrade is not None:
+        colour = ("green", "bold") if check.upgrade_to is not None else ("yellow",)
+        lines.append(f"    {style(upgrade, *colour)}")
+    chains: list[str] = []
+    for location in check.locations:
+        found = paths.get((location.path, location.node_id or ""))
+        if found is not None:
+            chains.append(f"pulled in by: {' > '.join(found)}" if found else "a direct dependency")
+    lines += [f"    {text}" for text in dict.fromkeys(chains)]
+    groups = package_groups(scan, check)
+    if groups:
+        lines.append(f"    used as: {', '.join(clean_text(g) for g in groups)}")
     places = sorted({clean_text(loc.path) for loc in check.locations})
     lines.append(f"    found in: {', '.join(places)}")
     return lines

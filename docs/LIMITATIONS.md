@@ -12,6 +12,11 @@ item is described in more detail in the page it links to.
   to appear.
 - A package version inside an affected range doesn't mean the vulnerable code
   is actually used by your project. DVA doesn't analyse code.
+- "Upgrade to" suggestions only consider the advisories OSV returned at scan
+  time and the fixed versions they name. DVA doesn't check that the version
+  works with the rest of your dependencies, because it doesn't resolve them.
+- "Pulled in by" needs a lockfile. Without one, DVA only knows where a
+  package was declared.
 - DVA reads dependency files without running anything, so it can miss
   dependencies that are only decided at install time or depend on the
   environment. See the [Threat model](THREAT_MODEL.md#known-limits).

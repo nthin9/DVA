@@ -69,7 +69,10 @@ check them too.
 The summary lists every affected package, most severe first by the
 database's own rating, with the advisory's ID, aliases (such as the CVE),
 severity as published, and the fixed version when the advisory gives one. It
-also lists every package that couldn't be checked, and why. On a terminal the
+also lists every package that couldn't be checked, and why. For each
+affected package it suggests the lowest fixed version that clears every
+advisory OSV lists for it (only versions the advisories name), and for an
+indirect dependency it shows which direct dependency pulls it in. On a terminal the
 summary is coloured; `--color never` (or the `NO_COLOR` environment variable)
 turns that off. The HTML report is a single file that works offline. The JSON report
 is described in [Report format](docs/REPORT_FORMAT.md).

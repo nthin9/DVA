@@ -26,7 +26,7 @@ from dva.contracts.intelligence import (
     PackageKey,
     ProviderError,
 )
-from dva.domain.advisory import Advisory
+from dva.domain.advisory import Advisory, EventKind
 from dva.domain.dependency import DeclaredRequirement, SourceKind
 from dva.domain.diagnostics import Diagnostic, DiagnosticLevel
 from dva.domain.identity import PackageIdentity
@@ -40,7 +40,7 @@ from dva.domain.vulnerability import (
     VulnerabilityReport,
 )
 from dva.matching.match import MatchStatus, match
-from dva.matching.schemes import scheme_for
+from dva.matching.schemes import UnparsableVersionError, VersionScheme, scheme_for
 
 type Clock = Callable[[], datetime]
 
@@ -388,15 +388,93 @@ def _check(
         status = CheckStatus.UNKNOWN
     else:
         status = CheckStatus.NO_MATCHING_ADVISORY
+    upgrade_to, upgrade_note = (None, None)
+    if findings:
+        upgrade_to, upgrade_note = _upgrade(
+            target, lookup.stamps, findings, advisories, failed_records
+        )
     return PackageCheck(
         target.identity,
         target.version,
         status,
         locations,
+        upgrade_to=upgrade_to,
+        upgrade_note=upgrade_note,
         findings=tuple(findings),
         reasons=tuple(reasons),
         data_retrieved_at=lookup.retrieved_at,
     )
+
+
+def _upgrade(
+    target: _Target,
+    stamps: tuple[AdvisoryStamp, ...],
+    findings: list[Finding],
+    advisories: dict[str, Advisory],
+    failed_records: dict[str, str],
+) -> tuple[str | None, str | None]:
+    """The lowest fixed version that clears every advisory, or why there is none.
+
+    Only versions the advisories themselves name as fixed are considered: the
+    fixes of the advisories affecting this version, and any later fix another
+    advisory for the package names (a newer advisory may affect the first
+    fix). A candidate is only offered if it is checked, with the ecosystem's
+    own rules, against every advisory the source listed for the package.
+    """
+    if any(stamp.id in failed_records for stamp in stamps):
+        return None, "not every advisory for this package could be read"
+    if any(not finding.fixed_versions for finding in findings):
+        return None, "an advisory for this version names no fixed version"
+    scheme = scheme_for(target.key.ecosystem)
+    if scheme is None:
+        return None, "DVA has no version rules for this ecosystem"
+    named = {v for finding in findings for v in finding.fixed_versions}
+    for stamp in stamps:
+        named |= _fixes_named(advisories[stamp.id], target, scheme)
+    try:
+        current = scheme.key(target.version)
+    except UnparsableVersionError:
+        return None, "the current version can't be compared"
+    candidates = []
+    for version in named:
+        try:
+            key = scheme.key(version)
+        except UnparsableVersionError:
+            continue
+        try:
+            if key > current:
+                candidates.append((key, version))
+        except TypeError:
+            continue
+    try:
+        candidates.sort()
+    except TypeError:
+        return None, "the fixed versions can't be put in order"
+    for _, version in candidates:
+        results = [
+            match(advisories[stamp.id], target.key.ecosystem, target.key.name, version).status
+            for stamp in stamps
+        ]
+        if all(
+            r in (MatchStatus.NOT_AFFECTED, MatchStatus.NOT_APPLICABLE, MatchStatus.WITHDRAWN)
+            for r in results
+        ):
+            return version, None
+    return None, "no single fixed version clears every advisory for this package"
+
+
+def _fixes_named(advisory: Advisory, target: _Target, scheme: VersionScheme) -> set[str]:
+    """Every fixed version an advisory names for this package."""
+    return {
+        event.version
+        for entry in advisory.affected
+        if entry.ecosystem == target.key.ecosystem
+        and scheme.same_package(entry.name, target.key.name)
+        for affected_range in entry.ranges
+        if affected_range.type != "GIT"
+        for event in affected_range.events
+        if event.kind is EventKind.FIXED
+    }
 
 
 def _data_source(lookups: dict[PackageKey, _Lookup]) -> DataSource:
