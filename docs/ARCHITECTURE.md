@@ -3,10 +3,10 @@
 DVA is a single Python package. It isn't split into services, because it's a
 local tool with one user at a time and a split would add moving parts without
 buying anything. The code is still divided into layers with clear jobs, so the
-CLI, a possible future desktop app, and the tests all drive the same engine.
+CLI, the planned desktop app, and the tests all drive the same engine.
 
 ```text
-   CLI (now)            Desktop app (maybe, later)
+   CLI (now)            Desktop app (planned)
        |                          |
        +------------+-------------+
                     |
@@ -280,5 +280,9 @@ inline scripts (by their SHA-256 hashes) and no network requests at all.
 
 ## A desktop app later
 
-A GUI isn't part of the first release. If one is built, it will call the same
-application layer as the CLI, and the choice of UI toolkit will be made then.
+A GUI isn't part of the first release, but it is the next major step after it
+(see the [Roadmap](ROADMAP.md)): a standalone desktop application that
+becomes the main way to use DVA, with the CLI kept for scripts and CI. It
+will call the same application layer as the CLI, so scanning, matching,
+history and comparison aren't written twice. The UI toolkit and the way it is
+packaged will be chosen when that work starts.
