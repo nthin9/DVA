@@ -13,6 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Protocol
 
+from dva.domain.acceptance import Acceptance
 from dva.domain.history import DigestEntry, PackageRef, Project, ScanDigest, ScanRecord
 
 
@@ -49,6 +50,18 @@ class HistoryStore(Protocol):
 
     def set_excludes(self, project_id: int, excludes: Sequence[str]) -> None:
         """Replace the paths and patterns a project's rescans skip."""
+        ...
+
+    def accept(self, project_id: int, acceptance: Acceptance, created_at: datetime) -> None:
+        """Save an accepted risk, replacing one for the same advisory and package."""
+        ...
+
+    def unaccept(self, project_id: int, advisory: str, package: str | None = None) -> int:
+        """Remove accepted risks; return how many were removed."""
+        ...
+
+    def acceptances(self, project_id: int) -> tuple[Acceptance, ...]:
+        """A project's accepted risks."""
         ...
 
     def save_scan(self, project_id: int, digest: ScanDigest, report: str) -> ScanRecord:

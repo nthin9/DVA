@@ -425,3 +425,48 @@ def test_brief_and_colour_options(
     assert "\x1b[" in capsys.readouterr().out
     with pytest.raises(SystemExit):
         main(["scan", str(root), "--brief", "--quiet"])
+
+
+def test_accepted_risks_from_a_file_and_a_project(
+    tmp_path: Path, data: list[str], fake_osv: FakeOsvTransport, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = app(tmp_path)
+    accept = tmp_path / "accept.toml"
+    accept.write_text(
+        '[[accept]]\nadvisory = "CVE-2021-23337"\nreason = "template input is trusted"\n',
+        encoding="utf-8",
+    )
+    # The file is only used when passed; a file in the scanned folder is never read.
+    (root / "accept.toml").write_text(accept.read_text(encoding="utf-8"), encoding="utf-8")
+    assert main(["scan", str(root), "--quiet", *data]) == EXIT_AFFECTED
+    assert main(["scan", str(root), "--accept-file", str(accept), *data]) == EXIT_CLEAN
+    out = capsys.readouterr().out
+    assert "accepted risk: template input is trusted" in out
+    assert main(["scan", str(root), "--accept-file", str(tmp_path / "nope.toml"), *data]) == 4
+
+    main(["project", "add", str(root), *data])
+    assert main(["project", "accept", "app", "GHSA-35jh-r3h4-6jhm", *data]) == EXIT_ERROR
+    assert "--reason" in capsys.readouterr().err
+    assert (
+        main(
+            [
+                "project",
+                "accept",
+                "app",
+                "GHSA-35jh-r3h4-6jhm",
+                "--reason",
+                "ok",
+                "--until",
+                "2999-01-01",
+                *data,
+            ]
+        )
+        == EXIT_CLEAN
+    )
+    main(["project", "accept", "app", "--list", *data])
+    assert "GHSA-35jh-r3h4-6jhm, until 2999-01-01: ok" in capsys.readouterr().out
+    assert main(["rescan", "app", "--quiet", *data]) == EXIT_CLEAN
+    main(["project", "accept", "app", "ghsa-35jh-r3h4-6jhm", "--remove", *data])
+    assert "Removed 1" in capsys.readouterr().out
+    assert main(["rescan", "app", "--quiet", *data]) == EXIT_AFFECTED
+    assert main(["project", "accept", "app", "X", "--reason", "r", "--until", "soon", *data]) == 4

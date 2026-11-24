@@ -11,10 +11,11 @@ import sqlite3
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 from dva.contracts.history import DuplicateProjectError, HistoryError
+from dva.domain.acceptance import Acceptance
 from dva.domain.history import (
     DigestEntry,
     PackageRef,
@@ -103,6 +104,60 @@ class SqliteHistoryStore:
     def remove_project(self, project_id: int) -> None:
         with self._transaction():
             self._db.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+
+    # Accepted risks
+
+    def accept(self, project_id: int, acceptance: Acceptance, created_at: datetime) -> None:
+        with self._transaction():
+            self._db.execute(
+                "INSERT OR REPLACE INTO project_acceptances"
+                " (project_id, advisory, package, reason, until, created_at)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    project_id,
+                    acceptance.advisory,
+                    acceptance.package or "",
+                    acceptance.reason,
+                    acceptance.until.isoformat() if acceptance.until else None,
+                    _store(created_at),
+                ),
+            )
+
+    def unaccept(self, project_id: int, advisory: str, package: str | None = None) -> int:
+        """Remove acceptances of ``advisory`` (any case); only for ``package`` if given."""
+        with self._transaction():
+            if package is None:
+                cursor = self._db.execute(
+                    "DELETE FROM project_acceptances WHERE project_id = ?"
+                    " AND advisory = ? COLLATE NOCASE",
+                    (project_id, advisory),
+                )
+            else:
+                cursor = self._db.execute(
+                    "DELETE FROM project_acceptances WHERE project_id = ?"
+                    " AND advisory = ? COLLATE NOCASE AND package = ? COLLATE NOCASE",
+                    (project_id, advisory, package),
+                )
+        return cursor.rowcount
+
+    def acceptances(self, project_id: int) -> tuple[Acceptance, ...]:
+        rows = self._db.execute(
+            "SELECT advisory, package, reason, until FROM project_acceptances"
+            " WHERE project_id = ? ORDER BY advisory, package",
+            (project_id,),
+        ).fetchall()
+        try:
+            return tuple(
+                Acceptance(
+                    _text(advisory),
+                    _text(reason),
+                    _text(package) or None,
+                    date.fromisoformat(_text(until)) if until is not None else None,
+                )
+                for advisory, package, reason, until in rows
+            )
+        except (ValueError, TypeError):
+            raise HistoryError("a saved acceptance is damaged and can't be read") from None
 
     # Scans
 

@@ -82,7 +82,7 @@ The exit code tells scripts what happened:
 | Code | Meaning |
 |---|---|
 | 0 | Nothing affected, and everything was checked |
-| 1 | At least one package is affected |
+| 1 | At least one package is affected (accepted risks don't count) |
 | 3 | Nothing affected was found, but something couldn't be read or checked |
 | 4 | The scan couldn't run, for example because the folder doesn't exist |
 | 2 | Invalid command-line arguments |

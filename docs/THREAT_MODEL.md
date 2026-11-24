@@ -41,6 +41,7 @@ are, and how each risk is handled.
 | Escape codes in the terminal | Control and invisible formatting characters in package names and advisory text are replaced before printing; JSON printed to the screen has every non-ASCII character escaped |
 | Private information leaks out | No telemetry; reports leave out absolute paths by default; only the ecosystem and package name are sent to OSV. A registered project's folder path is kept only in the local database and never written into a report |
 | A damaged or edited database changes what a comparison says | Saved rows and saved reports are validated when read; anything invalid is an error, not a result. Saved scans are never modified by DVA |
+| A scanned project hides its own findings | Accepted risks are only read from a file named on the command line or from the registered project, never from the scanned folder; accepted findings are still listed in every report |
 | Deleted data stays readable in the database file | Deleted rows are overwritten (SQLite's `secure_delete`), so clearing the cache, pruning history or removing a project doesn't leave the data behind |
 | A published archive contains local files | The source archive uses an explicit allowlist, and CI checks the built wheel and archive for local or secret files before anything could be published |
 | DVA's own dependencies are compromised | Few dependencies, locked versions, and review of any dependency change |

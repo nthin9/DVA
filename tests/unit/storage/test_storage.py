@@ -20,11 +20,16 @@ def test_new_database_gets_every_migration(tmp_path: Path) -> None:
     path = tmp_path / "nested" / "dva.sqlite"
     db = open_database(path)
     versions = [row[0] for row in db.execute("SELECT version FROM schema_migrations")]
-    assert versions == [1, 2, 3]
+    assert versions == [1, 2, 3, 4]
     db.close()
     # Opening again applies nothing twice.
     again = open_database(path)
-    assert [row[0] for row in again.execute("SELECT version FROM schema_migrations")] == [1, 2, 3]
+    assert [row[0] for row in again.execute("SELECT version FROM schema_migrations")] == [
+        1,
+        2,
+        3,
+        4,
+    ]
     again.close()
 
 

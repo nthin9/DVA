@@ -52,6 +52,39 @@ line, and each saved scan records what was excluded.
 An advisory that is no longer reported is not proof that a problem was fixed.
 It only means the newer scan didn't report it.
 
+## Accepted risks
+
+When a team has reviewed a finding and decided to live with it, they can
+accept it. An accepted finding stays in every report, marked with the reason,
+but no longer makes `scan` or `rescan` exit with 1.
+
+```powershell
+dva project accept myapp CVE-2021-23337 --reason "template input is trusted" --until 2027-06-30
+dva project accept myapp --list
+dva project accept myapp CVE-2021-23337 --remove
+```
+
+An advisory can be named by its own id or any alias, such as its CVE id, and
+the acceptance then covers every database's copy of that vulnerability.
+`--package` limits it to one package. After the `--until` date the finding
+counts again, and the report says the acceptance expired. An acceptance that
+matched nothing is reported too, so stale entries are easy to clean up.
+
+For one-off scans or CI, keep the acceptances in a TOML file and pass it with
+`--accept-file`:
+
+```toml
+[[accept]]
+advisory = "CVE-2021-23337"
+reason = "template input is trusted"
+package = "lodash"        # optional
+until = 2027-06-30        # optional
+```
+
+DVA never reads an acceptance file from the scanned folder by itself: it is
+only used when passed on the command line, so a project can't silence its own
+findings.
+
 ## Exit codes
 
 `rescan` uses the same exit codes as `scan` (see the README). With `--all`
