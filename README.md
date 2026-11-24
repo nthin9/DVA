@@ -6,9 +6,10 @@ vulnerability advisories. Everything runs on your own machine.
 
 ## Status
 
-DVA is in early development and doesn't scan anything yet. Right now the
-repository has the project skeleton, the design documents, and a CLI that only
-prints its version (`dva --version`).
+DVA is in early development and can't scan real projects yet. The core engine
+is in place (the data model, safe discovery of dependency files, and the
+interface that ecosystem parsers plug into), but the Python and npm parsers
+come next. The CLI only prints its version (`dva --version`) for now.
 
 ## What it will do
 

@@ -8,18 +8,12 @@ develops, so treat it as a guide, not a schedule.
 **Project setup.** The repository, Python packaging, test and lint tooling,
 and CI on Windows and Linux.
 
-## Now: the core engine
-
-- The data model for packages, dependencies, dependency files and scans.
-- The interface that ecosystem adapters implement, and the registry they are
-  listed in.
-- Safe discovery of dependency files in a project folder, with limits on depth,
-  file count and file size.
-- Stable JSON output of scan results, so the same scan always produces the
-  same output.
-
-This stage is finished when tests show that a new adapter can be added without
-changing the engine itself.
+**The core engine.** The data model for packages, dependencies, dependency
+files and scans; the interface ecosystem adapters implement and the registry
+they're listed in; safe discovery of dependency files with limits on depth,
+file count and file size; and stable JSON output, so the same scan always
+produces the same result. Tests show that a new adapter can be plugged in
+without changing the engine.
 
 ## Next
 
@@ -27,7 +21,9 @@ changing the engine itself.
 files and lockfiles, including direct and transitive dependencies. Each format
 gets its own test files, including malformed and deliberately hostile ones.
 
-**Vulnerability lookups.** Querying OSV, fetching and caching advisories,
+**Vulnerability lookups.** The data model for advisories and findings
+(designed against real OSV records rather than guessed up front), querying
+OSV, fetching and caching advisories,
 working offline from the cache, and matching versions against affected ranges
 using each ecosystem's own version rules.
 

@@ -66,13 +66,26 @@ immutable enforces that. Input from outside, such as file contents and API
 responses, is checked when it is turned into these objects, so the rest of the
 code can rely on them being valid.
 
-## 8. A standalone HTML graph instead of a desktop app
+## 8. The engine reads files; adapters only parse
+
+Ecosystem adapters don't open files themselves. The engine finds the
+dependency files, reads them with a size limit, and passes the contents to
+the adapter. When an adapter needs another file (for example an included
+requirements file), it asks the engine, which refuses anything outside the
+project folder, symlinks, Windows junctions, and oversized files.
+
+With this split, the protections against path tricks are written and tested
+once, instead of being repeated in every adapter, where one mistake would be
+enough to break them. It also keeps adapters simple to test: give them bytes,
+check what comes back.
+
+## 9. A standalone HTML graph instead of a desktop app
 
 The first release draws the dependency graph as a single HTML file with its
 JavaScript bundled inside. It opens in any browser, works offline, and avoids
 building a GUI before the engine is finished.
 
-## 9. Apache License 2.0
+## 10. Apache License 2.0
 
 DVA uses the Apache 2.0 license, a permissive license with an explicit patent
 grant. Any third-party code bundled with DVA, such as a graph library, has to

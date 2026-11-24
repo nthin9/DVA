@@ -30,23 +30,28 @@ CLI, a possible future desktop app, and the tests all drive the same engine.
 
 ## Code layout
 
-At the moment the repository only contains the CLI entry point
-(`src/dva/cli.py`). The rest of the layout below is the plan, and each part
-gets added when the work that needs it starts:
+The folders marked "built" exist today. The others are planned and get added
+when the work that needs them starts:
 
 ```text
 src/dva/
-  cli/            command-line interface, presentation only
-  domain/         the data model: packages, dependencies, scans, diagnostics
-  application/    use cases such as "scan this project"
-  contracts/      the interfaces adapters implement
-  discovery/      finding dependency files in a project folder
-  ecosystems/     one adapter per ecosystem (python/, npm/) plus a registry
+  cli.py          command-line interface, presentation only        (built)
+  domain/         the data model: packages, dependencies, scans,   (built)
+                  diagnostics, and stable JSON serialization
+  application/    use cases such as "analyze this project"         (built)
+  contracts/      the interfaces adapters implement                (built)
+  discovery/      finding and safely reading project files         (built)
+  ecosystems/     the adapter registry (built); one adapter per
+                  ecosystem (python/, npm/) to come
   intelligence/   vulnerability sources; osv/ is the first
   matching/       checking whether a version falls in an affected range
   storage/        SQLite persistence
   reporting/      JSON report and the HTML graph
 ```
+
+The engine runs end to end today, but no ecosystem adapters ship yet, so a
+real project currently comes back as "no supported files found". The tests
+use a small made-up format to exercise the whole pipeline.
 
 ## How a scan works
 
@@ -81,7 +86,22 @@ the project. If an adapter needs to follow a reference to another file (as
 and the core refuses paths that point outside the project.
 
 Adapters are listed explicitly in a registry inside DVA. There's no plugin
-system that loads code from elsewhere.
+system that loads code from elsewhere. The registry refuses two adapters with
+the same ID or the same file pattern, and if a file still matches more than
+one adapter, discovery skips it and says why instead of picking one.
+
+When an adapter fails, the damage stays with that one file. If it crashes or
+returns data that doesn't hold together (say, a dependency pointing at a
+package that isn't in the file), that file is marked as failed with a note
+and the rest of the scan carries on. The note gives only the error type,
+because an error message could repeat file contents or local paths.
+
+## Limits
+
+Every scan has limits, all adjustable: how many folder levels deep to look
+(16 by default), how many folder entries to examine (100,000), how many
+dependency files to accept (1,000), and the largest file to read (32 MiB).
+Hitting any of them is recorded in the result, and the scan is marked partial.
 
 ## Data model
 

@@ -1,0 +1,122 @@
+{
+  "completion": "partial",
+  "diagnostics": [],
+  "finished_at": "2026-01-02T03:04:06.000500Z",
+  "manifests": [
+    {
+      "adapter_id": "example",
+      "diagnostics": [
+        {
+          "code": "manifest.unsupported_format",
+          "level": "warning",
+          "message": "not supported",
+          "path": "example.lock"
+        }
+      ],
+      "ecosystem": "example",
+      "edges": [],
+      "format_name": "example-lock",
+      "format_version": null,
+      "kind": "lockfile",
+      "packages": [],
+      "path": "example.lock",
+      "requirements": [],
+      "status": "unsupported"
+    },
+    {
+      "adapter_id": "example",
+      "diagnostics": [
+        {
+          "code": "example.include_denied",
+          "level": "warning",
+          "message": "denied",
+          "path": "sub/example-deps.txt"
+        },
+        {
+          "code": "example.malformed_line",
+          "level": "warning",
+          "message": "line 3",
+          "path": "sub/example-deps.txt"
+        }
+      ],
+      "ecosystem": "example",
+      "edges": [
+        {
+          "child_id": "alpha@1.0",
+          "constraint": null,
+          "direct": true,
+          "parent_id": null
+        },
+        {
+          "child_id": "bêta@2.0",
+          "constraint": ">=2",
+          "direct": false,
+          "parent_id": "alpha@1.0"
+        }
+      ],
+      "format_name": "example-deps",
+      "format_version": "1",
+      "kind": "manifest",
+      "packages": [
+        {
+          "groups": [],
+          "identity": {
+            "ecosystem": "example",
+            "name": "alpha",
+            "namespace": null,
+            "purl": "pkg:example/alpha"
+          },
+          "node_id": "alpha@1.0",
+          "version": "1.0"
+        },
+        {
+          "groups": [],
+          "identity": {
+            "ecosystem": "example",
+            "name": "bêta",
+            "namespace": null,
+            "purl": null
+          },
+          "node_id": "bêta@2.0",
+          "version": "2.0"
+        }
+      ],
+      "path": "sub/example-deps.txt",
+      "requirements": [
+        {
+          "constraint": "==1.0",
+          "groups": [
+            "a",
+            "dev"
+          ],
+          "identity": {
+            "ecosystem": "example",
+            "name": "alpha",
+            "namespace": null,
+            "purl": "pkg:example/alpha"
+          },
+          "line": 1,
+          "markers": null
+        },
+        {
+          "constraint": "==2.0",
+          "groups": [],
+          "identity": {
+            "ecosystem": "example",
+            "name": "bêta",
+            "namespace": null,
+            "purl": null
+          },
+          "line": 2,
+          "markers": null
+        }
+      ],
+      "status": "partial"
+    }
+  ],
+  "project_name": "demo",
+  "schema_version": "dva.internal-scan/0",
+  "started_at": "2026-01-02T03:04:05.000000Z",
+  "tool_version": "0.0.1",
+  "vulnerability_status": "not_queried"
+}
