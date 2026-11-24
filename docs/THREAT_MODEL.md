@@ -38,9 +38,11 @@ are, and how each risk is handled.
 | A network failure is read as "nothing found" | Failed lookups are reported as failed, and cached results are shown with their age |
 | A version is matched against the wrong range | Version rules specific to each ecosystem, with tests at the edges of affected ranges |
 | Script injection through the HTML report | Data is embedded as escaped JSON, the page only inserts text (never HTML), links are limited to http(s), the graph library is vendored and hash-checked, and a Content Security Policy allows only the page's own scripts by hash and no network access |
-| Escape codes in the terminal | Control and invisible formatting characters in package names and advisory text are replaced before printing |
+| Escape codes in the terminal | Control and invisible formatting characters in package names and advisory text are replaced before printing; JSON printed to the screen has every non-ASCII character escaped |
 | Private information leaks out | No telemetry; reports leave out absolute paths by default; only the ecosystem and package name are sent to OSV. A registered project's folder path is kept only in the local database and never written into a report |
-| A damaged or edited database changes what a comparison says | Saved rows are validated when read; anything invalid is an error, not a result. Saved scans are never modified by DVA |
+| A damaged or edited database changes what a comparison says | Saved rows and saved reports are validated when read; anything invalid is an error, not a result. Saved scans are never modified by DVA |
+| Deleted data stays readable in the database file | Deleted rows are overwritten (SQLite's `secure_delete`), so clearing the cache, pruning history or removing a project doesn't leave the data behind |
+| A published archive contains local files | The source archive uses an explicit allowlist, and CI checks the built wheel and archive for local or secret files before anything could be published |
 | DVA's own dependencies are compromised | Few dependencies, locked versions, and review of any dependency change |
 
 ## What gets sent over the network

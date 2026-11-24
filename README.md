@@ -32,10 +32,20 @@ uv tool install git+https://github.com/nthin9/DVA
 pipx install git+https://github.com/nthin9/DVA
 ```
 
-Check that it works with `dva --version`. To update later, run
-`uv tool upgrade dvanalysis` (or `pipx upgrade dvanalysis`). To remove it, run
-`uv tool uninstall dvanalysis` (or `pipx uninstall dvanalysis`); the advisory cache stays
-in your data folder until you delete it.
+To install a particular release instead of the latest code, add its tag,
+for example `git+https://github.com/nthin9/DVA@v0.0.1`. Each release on
+GitHub also has a wheel file attached, which `uv tool install` or
+`pipx install` can install directly.
+
+Check that it works with `dva --version`. If the command isn't found, the
+tool folder isn't on your PATH yet: run `uv tool update-shell` (or
+`pipx ensurepath`) and open a new terminal.
+
+To update later, run `uv tool upgrade dvanalysis` (or
+`pipx upgrade dvanalysis`). To remove it, run `uv tool uninstall dvanalysis`
+(or `pipx uninstall dvanalysis`). Your registered projects, scan history and
+advisory cache stay in your data folder (`%LOCALAPPDATA%\DVA` on Windows)
+until you delete that folder.
 
 ## Usage
 
@@ -126,6 +136,7 @@ macOS should work too, but Windows is the main target).
 - [Projects and scan history](docs/HISTORY.md): registering, rescanning and comparing
 - [Roadmap](docs/ROADMAP.md): what's planned and in what order
 - [Threat model](docs/THREAT_MODEL.md): what DVA defends against and its known limits
+- [Limitations](docs/LIMITATIONS.md): everything DVA doesn't do yet, in one place
 - [Design decisions](docs/DECISIONS.md): the main choices and why they were made
 
 ## Development setup

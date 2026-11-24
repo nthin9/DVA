@@ -313,3 +313,58 @@ def test_search_finds_packages_across_projects(
     assert "py: typing-extensions (pypi) 4.12.2" in capsys.readouterr().out
     main(["search", "nothing-like-this", *data])
     assert "No registered project's latest scan includes" in capsys.readouterr().out
+
+
+def test_a_saved_report_printed_to_the_screen_has_no_control_characters(
+    tmp_path: Path, data: list[str], fake_osv: FakeOsvTransport, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Regression: advisory text with a C1 control (CSI) or a bidi override was
+    # printed raw, since JSON only escapes C0 controls.
+    hostile = "evil\u009b31m\u202etext"
+    fake_osv.record("GHSA-35jh-r3h4-6jhm")["summary"] = hostile
+    main(["project", "add", str(app(tmp_path)), *data])
+    main(["rescan", "app", "--quiet", *data])
+    capsys.readouterr()
+    assert main(["history", "app", "--show", "1", *data]) == EXIT_CLEAN
+    out = capsys.readouterr().out
+    assert "\u009b" not in out and "\u202e" not in out
+    advisories = json.loads(out)["vulnerabilities"]["advisories"]
+    assert advisories[0]["summary"] == hostile
+
+
+def test_a_damaged_saved_report_is_not_exported(
+    tmp_path: Path, data: list[str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    import sqlite3
+
+    main(["project", "add", str(app(tmp_path)), *data])
+    main(["rescan", "app", "--no-vulnerabilities", "--quiet", *data])
+    db = sqlite3.connect(tmp_path / "data" / "dva.sqlite")
+    db.execute('UPDATE scans SET report = \'{"schema_version": "dva.report/1"}\'')
+    db.commit()
+    db.close()
+    out = tmp_path / "x.json"
+    assert main(["history", "app", "--show", "1", "--json", str(out), *data]) == EXIT_ERROR
+    assert not out.exists()
+    assert "damaged" in capsys.readouterr().err
+
+
+def test_a_locked_database_is_a_clear_error(
+    tmp_path: Path,
+    data: list[str],
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import sqlite3
+
+    from dva.storage import database
+
+    main(["project", "add", str(app(tmp_path)), *data])
+    monkeypatch.setattr(database, "BUSY_TIMEOUT_SECONDS", 0.05)
+    other = sqlite3.connect(tmp_path / "data" / "dva.sqlite", isolation_level=None)
+    other.execute("BEGIN EXCLUSIVE")
+    try:
+        assert main(["project", "add", str(app(tmp_path, name="b")), *data]) == EXIT_ERROR
+        assert "in use by another DVA command" in capsys.readouterr().err
+    finally:
+        other.close()

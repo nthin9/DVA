@@ -18,6 +18,10 @@ from pathlib import Path
 _MIGRATION_NAME = re.compile(r"^(\d{3})_[a-z0-9_]+\.sql$")
 
 
+#: How long to wait for another DVA command to finish writing.
+BUSY_TIMEOUT_SECONDS = 5.0
+
+
 class DatabaseError(Exception):
     """The database can't be opened or upgraded. Messages contain no local paths."""
 
@@ -43,12 +47,20 @@ def open_database(path: Path | str) -> sqlite3.Connection:
     if str(path) != ":memory:":
         Path(path).parent.mkdir(parents=True, exist_ok=True)
     try:
-        connection = sqlite3.connect(path, isolation_level=None)
+        connection = sqlite3.connect(path, isolation_level=None, timeout=BUSY_TIMEOUT_SECONDS)
     except sqlite3.Error:
         raise DatabaseError("could not open the DVA database") from None
-    connection.execute("PRAGMA foreign_keys = ON")
     try:
+        connection.execute("PRAGMA foreign_keys = ON")
+        # Overwrite deleted content, so a cleared cache or a removed project
+        # doesn't stay readable in the file's free pages.
+        connection.execute("PRAGMA secure_delete = ON")
         migrate(connection)
+    except sqlite3.Error:
+        connection.close()
+        raise DatabaseError(
+            "the DVA database is in use by another DVA command, or is damaged"
+        ) from None
     except BaseException:
         connection.close()
         raise

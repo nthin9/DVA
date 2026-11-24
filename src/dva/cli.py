@@ -24,6 +24,7 @@ are kept private and they are listed as not checked.
 from __future__ import annotations
 
 import argparse
+import json
 import sqlite3
 import sys
 from collections.abc import Callable, Iterator, Sequence
@@ -283,6 +284,10 @@ def _database(args: argparse.Namespace, purpose: str) -> Iterator[sqlite3.Connec
         yield database
     except HistoryError as error:
         raise _Failure(str(error)) from None
+    except sqlite3.Error:
+        raise _Failure(
+            f"the {purpose} couldn't be used: it may be in use by another DVA command, or damaged"
+        ) from None
     finally:
         database.close()
 
@@ -435,14 +440,18 @@ def _history(args: argparse.Namespace) -> int:
         report = store.report(project.id, args.show)
     if report is None:
         raise _Failure(f"{clean_text(project.name)!r} has no saved scan #{args.show}")
+    saved = _saved_scan(report, args.show)  # Refuse a damaged report before exporting it.
     if args.json is None and args.html is None:
-        sys.stdout.write(report)
+        # On the screen, escape everything outside ASCII as \u sequences, so text
+        # from a scanned file or an advisory can't carry terminal control codes.
+        # It's the same JSON data; files get the saved report byte for byte.
+        sys.stdout.write(json.dumps(json.loads(report), ensure_ascii=True, indent=2) + "\n")
         return EXIT_CLEAN
     outputs: list[tuple[str, Path, Callable[[], str]]] = []
     if args.json is not None:
         outputs.append(("JSON", args.json, lambda: report))
     if args.html is not None:
-        outputs.append(("HTML", args.html, lambda: render_html(_saved_scan(report, args.show))))
+        outputs.append(("HTML", args.html, lambda: render_html(saved)))
     for label, path, render in outputs:
         try:
             path.write_text(render(), encoding="utf-8")
