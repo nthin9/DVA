@@ -253,6 +253,7 @@ def scan_to_dict(scan: ScanResult) -> dict[str, JsonValue]:
         "vulnerabilities": _report(scan.vulnerabilities),
         "manifests": [_manifest(m) for m in manifests],
         "diagnostics": _diagnostics(scan.diagnostics),
+        "excluded": _strings(scan.excluded),
     }
 
 

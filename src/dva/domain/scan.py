@@ -8,6 +8,7 @@ from enum import StrEnum
 
 from dva.domain.diagnostics import Diagnostic, DiagnosticLevel
 from dva.domain.manifest import ManifestAnalysis, ParseStatus
+from dva.domain.paths import require_relative_path
 from dva.domain.vulnerability import VulnerabilityReport, VulnerabilityStatus
 
 __all__ = ["CompletionState", "ScanResult", "VulnerabilityStatus"]
@@ -38,7 +39,9 @@ class ScanResult:
 
     ``project_name`` is a display name (the root directory's name), never the
     absolute root path. ``vulnerabilities`` is ``None`` until the scan's
-    packages have been checked against a vulnerability source.
+    packages have been checked against a vulnerability source. ``excluded``
+    lists the paths and patterns the user asked the scan to skip, so a
+    report shows that its coverage was limited on purpose.
     """
 
     tool_version: str
@@ -48,6 +51,7 @@ class ScanResult:
     manifests: tuple[ManifestAnalysis, ...] = ()
     diagnostics: tuple[Diagnostic, ...] = ()
     vulnerabilities: VulnerabilityReport | None = None
+    excluded: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.tool_version:
@@ -58,6 +62,8 @@ class ScanResult:
         _require_utc("finished_at", self.finished_at)
         if self.finished_at < self.started_at:
             raise ValueError("finished_at must not precede started_at")
+        for pattern in self.excluded:
+            require_relative_path(pattern)
         paths = [manifest.path for manifest in self.manifests]
         if len(set(paths)) != len(paths):
             raise ValueError("manifest paths must be unique within a scan")

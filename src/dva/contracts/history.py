@@ -8,6 +8,7 @@ pruning deletes a project's oldest scans whole.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
 from typing import Protocol
@@ -24,7 +25,9 @@ class DuplicateProjectError(HistoryError):
 
 
 class HistoryStore(Protocol):
-    def add_project(self, name: str, root: Path, created_at: datetime) -> Project:
+    def add_project(
+        self, name: str, root: Path, created_at: datetime, excludes: Sequence[str] = ()
+    ) -> Project:
         """Register ``root`` (an absolute, resolved folder) under ``name``.
 
         Raises :class:`DuplicateProjectError` if the name (ignoring case) or
@@ -42,6 +45,10 @@ class HistoryStore(Protocol):
 
     def remove_project(self, project_id: int) -> None:
         """Unregister a project and delete every scan saved for it."""
+        ...
+
+    def set_excludes(self, project_id: int, excludes: Sequence[str]) -> None:
+        """Replace the paths and patterns a project's rescans skip."""
         ...
 
     def save_scan(self, project_id: int, digest: ScanDigest, report: str) -> ScanRecord:

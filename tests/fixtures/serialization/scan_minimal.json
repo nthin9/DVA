@@ -1,6 +1,7 @@
 {
   "completion": "partial",
   "diagnostics": [],
+  "excluded": [],
   "finished_at": "2026-01-02T03:04:06.000500Z",
   "manifests": [
     {

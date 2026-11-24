@@ -319,6 +319,7 @@ def scan_from_dict(value: object) -> ScanResult:
             manifests=tuple(_manifest(m) for m in data.objects("manifests")),
             diagnostics=_diagnostics(data),
             vulnerabilities=_report(data.object("vulnerabilities")),
+            excluded=data.texts("excluded"),
         )
     except ReportFormatError:
         raise

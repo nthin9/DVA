@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from dva.contracts.ecosystem import EcosystemAdapter, FileFormat
+from dva.discovery.exclude import ExcludeRules
 from dva.discovery.limits import ScanLimits
 from dva.domain.diagnostics import Diagnostic, DiagnosticLevel
 from dva.ecosystems.registry import AdapterRegistry
@@ -57,8 +58,15 @@ def _warning(code: str, message: str, path: str | None = None) -> Diagnostic:
     return Diagnostic(code, DiagnosticLevel.WARNING, message, path)
 
 
-def discover(root: Path, registry: AdapterRegistry, limits: ScanLimits) -> DiscoveryResult:
-    """Find files under ``root`` that match a format declared in ``registry``."""
+def discover(
+    root: Path,
+    registry: AdapterRegistry,
+    limits: ScanLimits,
+    exclude: ExcludeRules | None = None,
+) -> DiscoveryResult:
+    """Find files under ``root`` that match a format declared in ``registry``,
+    skipping anything ``exclude`` matches."""
+    exclude = exclude or ExcludeRules()
     files: list[DiscoveredFile] = []
     diagnostics: list[Diagnostic] = []
     entries_seen = 0
@@ -114,6 +122,8 @@ def discover(root: Path, registry: AdapterRegistry, limits: ScanLimits) -> Disco
                 )
                 continue
             rel_path = f"{rel_dir}/{entry.name}" if rel_dir else entry.name
+            if exclude and exclude.matches(rel_path):
+                continue
 
             try:
                 if entry.is_symlink() or entry.is_junction():

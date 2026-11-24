@@ -8,13 +8,14 @@ reported; they never turn into a clean result.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 
 from dva import __version__
 from dva.contracts.ecosystem import AdapterResult, ParseContext, SupportLevel
 from dva.contracts.files import FileAccessError, FileTooLargeError
+from dva.discovery.exclude import ExcludeRules
 from dva.discovery.limits import ScanLimits
 from dva.discovery.reader import BoundedFileReader
 from dva.discovery.walker import DiscoveredFile, discover
@@ -39,18 +40,22 @@ def analyze_project(
     registry: AdapterRegistry,
     *,
     limits: ScanLimits | None = None,
+    exclude: Sequence[str] = (),
     clock: Clock = _utc_now,
 ) -> ScanResult:
     """Analyze the dependency files under ``root`` with the adapters in ``registry``.
 
-    Reads files only; never executes project code. Raises
-    :class:`InvalidProjectRootError` if ``root`` is not an existing directory.
+    ``exclude`` lists project-relative paths or glob patterns to skip; the
+    result records them. Reads files only; never executes project code.
+    Raises :class:`InvalidProjectRootError` if ``root`` is not an existing
+    directory, and ``ValueError`` for an unusable exclude pattern.
     """
     limits = limits if limits is not None else ScanLimits()
+    rules = ExcludeRules(exclude)
     started_at = clock()
     resolved_root = _validate_root(root)
     reader = BoundedFileReader(resolved_root, limits.max_file_bytes)
-    discovery = discover(resolved_root, registry, limits)
+    discovery = discover(resolved_root, registry, limits, rules)
     manifests = tuple(_analyze_file(item, reader) for item in discovery.files)
     finished_at = clock()
     return ScanResult(
@@ -60,6 +65,7 @@ def analyze_project(
         finished_at=finished_at,
         manifests=manifests,
         diagnostics=discovery.diagnostics,
+        excluded=rules.patterns,
     )
 
 

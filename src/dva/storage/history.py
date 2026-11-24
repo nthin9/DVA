@@ -8,8 +8,9 @@ database file produces an error instead of a wrong comparison.
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -57,21 +58,35 @@ class SqliteHistoryStore:
 
     # Projects
 
-    def add_project(self, name: str, root: Path, created_at: datetime) -> Project:
-        project = Project(0, name, root, created_at)  # Validates before writing.
+    def add_project(
+        self, name: str, root: Path, created_at: datetime, excludes: Sequence[str] = ()
+    ) -> Project:
+        project = Project(0, name, root, created_at, tuple(excludes))  # Validates first.
         try:
             with self._transaction():
                 cursor = self._db.execute(
                     "INSERT INTO projects (name, root, root_key, created_at) VALUES (?, ?, ?, ?)",
                     (name, str(root), root_key(root), _store(created_at)),
                 )
+                if cursor.lastrowid is None:
+                    raise HistoryError("the project couldn't be saved")
+                self._write_excludes(cursor.lastrowid, project.excludes)
         except sqlite3.IntegrityError:
             raise DuplicateProjectError(
                 "a project with that name, or for that folder, is already registered"
             ) from None
-        if cursor.lastrowid is None:
-            raise HistoryError("the project couldn't be saved")
-        return Project(cursor.lastrowid, project.name, project.root, project.created_at)
+        return replace(project, id=cursor.lastrowid)
+
+    def set_excludes(self, project_id: int, excludes: Sequence[str]) -> None:
+        with self._transaction():
+            self._db.execute("DELETE FROM project_excludes WHERE project_id = ?", (project_id,))
+            self._write_excludes(project_id, tuple(dict.fromkeys(excludes)))
+
+    def _write_excludes(self, project_id: int, excludes: Sequence[str]) -> None:
+        self._db.executemany(
+            "INSERT INTO project_excludes (project_id, pattern) VALUES (?, ?)",
+            [(project_id, pattern) for pattern in excludes],
+        )
 
     def project(self, name: str) -> Project | None:
         row = self._db.execute(
@@ -82,7 +97,7 @@ class SqliteHistoryStore:
     def projects(self) -> tuple[Project, ...]:
         rows = self._db.execute(
             "SELECT id, name, root, created_at FROM projects ORDER BY name COLLATE NOCASE, id"
-        )
+        ).fetchall()
         return tuple(self._project(row) for row in rows)
 
     def remove_project(self, project_id: int) -> None:
@@ -237,15 +252,21 @@ class SqliteHistoryStore:
         row = self._db.execute("SELECT * FROM scan_records WHERE id = ?", (scan_id,)).fetchone()
         return self._scan_record(row) if row is not None else None
 
-    @staticmethod
-    def _project(row: tuple[object, ...]) -> Project:
+    def _project(self, row: tuple[object, ...]) -> Project:
         project_id, name, root, created_at = row
         try:
             if not isinstance(project_id, int) or not isinstance(name, str):
                 raise TypeError
             if not isinstance(root, str) or not isinstance(created_at, str):
                 raise TypeError
-            return Project(project_id, name, Path(root), _load(created_at))
+            excludes = tuple(
+                _text(pattern)
+                for (pattern,) in self._db.execute(
+                    "SELECT pattern FROM project_excludes WHERE project_id = ? ORDER BY rowid",
+                    (project_id,),
+                )
+            )
+            return Project(project_id, name, Path(root), _load(created_at), excludes)
         except (ValueError, TypeError):
             raise HistoryError("a saved project is damaged and can't be read") from None
 
