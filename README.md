@@ -54,6 +54,7 @@ dva scan                       # scan the current folder
 dva scan C:\code\myapp        # scan another folder
 dva scan --html report.html --json report.json
 dva scan --json - > report.json  # print the JSON report instead of the summary
+dva scan --brief               # one line per affected package, most severe first
 dva scan --offline             # use only advisory data cached by earlier scans
 dva scan --no-vulnerabilities  # list dependencies without checking advisories
 dva scan --exclude tests/fixtures  # skip a folder (repeatable; */examples works too)
@@ -65,10 +66,12 @@ Packages from a private or alternative registry aren't looked up by default,
 because their names may be private; add `--include-private-registries` to
 check them too.
 
-The summary lists every affected package with the advisory's ID, aliases
-(such as the CVE), severity as published, and the fixed version when the
-advisory gives one. It also lists every package that couldn't be checked,
-and why. The HTML report is a single file that works offline. The JSON report
+The summary lists every affected package, most severe first by the
+database's own rating, with the advisory's ID, aliases (such as the CVE),
+severity as published, and the fixed version when the advisory gives one. It
+also lists every package that couldn't be checked, and why. On a terminal the
+summary is coloured; `--color never` (or the `NO_COLOR` environment variable)
+turns that off. The HTML report is a single file that works offline. The JSON report
 is described in [Report format](docs/REPORT_FORMAT.md).
 
 The exit code tells scripts what happened:

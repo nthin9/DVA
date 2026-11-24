@@ -74,6 +74,55 @@ def group_findings(
     return [sorted(group, key=richness) for group in groups]
 
 
+#: The database severity labels DVA orders, most severe first. Databases use
+#: "MODERATE" (GitHub) or "MEDIUM"; both are the same level here.
+SEVERITY_LEVELS = ("critical", "high", "moderate", "low")
+_RANKS = {"critical": 4, "high": 3, "moderate": 2, "medium": 2, "low": 1}
+UNRATED = "unrated"
+
+
+def severity_rank(label: str | None) -> int:
+    """How severe a database's own label is: 4 for critical down to 1 for low,
+    0 when there is no label DVA recognizes. DVA never computes a severity."""
+    return _RANKS.get((label or "").strip().lower(), 0)
+
+
+def severity_name(rank: int) -> str:
+    return SEVERITY_LEVELS[4 - rank] if rank else UNRATED
+
+
+def group_rank(group: list[Finding], advisories: dict[str, Advisory]) -> int:
+    """The most severe label among one vulnerability's copies."""
+    return max(
+        (
+            severity_rank(advisories[f.advisory_id].database_severity)
+            for f in group
+            if f.advisory_id in advisories
+        ),
+        default=0,
+    )
+
+
+def check_rank(check: PackageCheck, advisories: dict[str, Advisory]) -> int:
+    """The most severe label among the vulnerabilities affecting one package version."""
+    return max(
+        (group_rank(g, advisories) for g in group_findings(check.findings, advisories)),
+        default=0,
+    )
+
+
+def findings_by_severity(
+    checks: tuple[PackageCheck, ...] | list[PackageCheck], advisories: dict[str, Advisory]
+) -> dict[str, int]:
+    """How many vulnerabilities (copies counted once) affect each package version,
+    by label, most severe first; levels with none are left out."""
+    counts: Counter[str] = Counter()
+    for check in checks:
+        for group in group_findings(check.findings, advisories):
+            counts[severity_name(group_rank(group, advisories))] += 1
+    return {name: counts[name] for name in (*SEVERITY_LEVELS, UNRATED) if counts[name]}
+
+
 @dataclass(frozen=True, slots=True)
 class Overview:
     files_by_status: dict[str, int]
