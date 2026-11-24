@@ -74,6 +74,6 @@ version, nothing about the user.
   vulnerable code is actually used by your project.
 - Cached advisory data gets out of date. DVA shows how old it is, but can't
   make it current while offline.
-- If a future version lets package managers help resolve dependencies, that
-  brings back the risk of running project code. It would need its own design
-  and security review before being added.
+- Letting package managers resolve dependencies is not planned, because it
+  brings back the risk of running project code. Adding it would need its own
+  design and security review.

@@ -94,10 +94,11 @@ check what comes back.
 
 ## 9. A standalone HTML graph instead of a desktop app
 
-The first release draws the dependency graph as a single HTML file with its
+Up to v1.0, DVA draws the dependency graph as a single HTML file with its
 JavaScript bundled inside. It opens in any browser, works offline, and avoids
-building a GUI before the engine is finished. A desktop app is planned after
-the first release; until then the HTML report is the visual view.
+building a GUI before the engine is finished. The desktop front end comes in
+v2.0 (see the [Roadmap](ROADMAP.md)); until then the HTML report is the
+visual view.
 
 The graph is drawn with Cytoscape.js, a mature MIT-licensed graph library,
 rather than our own drawing code. It is vendored as one unmodified file from
@@ -125,3 +126,17 @@ edges of real advisories' ranges.
 The HTTP client is the standard library's `urllib`, with timeouts, HTTPS only,
 no redirects, a response-size limit and a few retries, so no extra dependency
 is needed for the handful of requests a scan makes.
+
+## 12. A command-line tool first, desktop applications after it
+
+Version 1.0 is a finished, stable command-line tool for Python and
+JavaScript projects. New ecosystems come next, starting with Java in v1.1,
+and the desktop applications follow as v2.0 (a front end) and v3.0 (a full
+application).
+
+A stable engine and command line are what both CI users and a later GUI
+depend on, and a GUI built on a moving engine would be rebuilt with it. Only
+one new ecosystem, Java, is committed to after v1.0; the next one is chosen
+once Java support shows how much each ecosystem costs. Until v1.0, releases
+are GitHub pre-releases, so the interface can still change without breaking
+installations that come from a package index.
