@@ -212,6 +212,8 @@ def _check(check: PackageCheck) -> dict[str, JsonValue]:
         ],
         "reasons": _strings(check.reasons),
         "data_retrieved_at": _optional_timestamp(check.data_retrieved_at),
+        "upgrade_to": check.upgrade_to,
+        "upgrade_note": check.upgrade_note,
     }
 
 

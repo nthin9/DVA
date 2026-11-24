@@ -288,6 +288,8 @@ def _check(data: _Object) -> PackageCheck:
         ),
         reasons=data.texts("reasons"),
         data_retrieved_at=data.optional_time("data_retrieved_at"),
+        upgrade_to=data.optional_text("upgrade_to"),
+        upgrade_note=data.optional_text("upgrade_note"),
     )
 
 

@@ -98,6 +98,19 @@ known), `status`, `locations` (each a `path` plus a `node_id` or `line`),
   version range is known, or it comes from git. `reasons` says why.
 - `lookup_failed`: the lookup failed and nothing usable was cached.
 
+For an affected package, `upgrade_to` is the lowest version that the
+advisories themselves name as fixed and that none of the advisories the
+source listed for the package affect, checked with the ecosystem's own
+version rules. When there is no such version, `upgrade_to` is `null` and
+`upgrade_note` says why (for example, an advisory names no fixed version).
+Both are `null` for packages that aren't affected. DVA doesn't check whether
+the suggested version fits the rest of the dependency tree.
+
+`introduced_by` (in the report written by DVA, not part of the scan data it
+reads back) lists, for each lockfile location, the shortest chain of package
+names from a direct dependency down to this package. An empty chain means
+the package is itself a direct dependency.
+
 A **finding** has `advisory_id`, `matched_by` (`range`, `versions` or both),
 `fixed_versions`, `last_affected` and `severities`. The fixed and last
 affected versions are copied from the advisory and are empty when the
