@@ -54,19 +54,23 @@ class Project:
     """A local folder registered for repeated scans.
 
     ``root`` is the absolute folder path. It stays in the local database and
-    is never written into a report.
+    is never written into a report. ``excludes`` lists project-relative paths
+    or patterns that every rescan skips.
     """
 
     id: int
     name: str
     root: Path
     created_at: datetime
+    excludes: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         require_project_name(self.name)
         if not self.root.is_absolute():
             raise ValueError("a project root must be an absolute path")
         _require_utc("created_at", self.created_at)
+        for pattern in self.excludes:
+            require_relative_path(pattern)
 
 
 @dataclass(frozen=True, slots=True)

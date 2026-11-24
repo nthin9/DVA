@@ -40,6 +40,7 @@ from dva.application.history import (
     find_package,
     register_project,
     rescan_project,
+    set_project_excludes,
 )
 from dva.application.vulnerabilities import check_vulnerabilities
 from dva.contracts.history import HistoryError
@@ -96,7 +97,22 @@ def _data_dir_option(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _exclude_option(parser: argparse.ArgumentParser, help_text: str) -> None:
+    parser.add_argument(
+        "--exclude",
+        action="append",
+        default=[],
+        metavar="PATH",
+        help=help_text,
+    )
+
+
 def _check_options(parser: argparse.ArgumentParser) -> None:
+    _exclude_option(
+        parser,
+        "skip this folder or file, relative to the project (repeatable; "
+        "* patterns such as */fixtures work too)",
+    )
     parser.add_argument("--json", metavar="FILE", type=Path, help="also write a JSON report")
     parser.add_argument("--html", metavar="FILE", type=Path, help="also write an HTML report")
     lookups = parser.add_mutually_exclusive_group()
@@ -143,9 +159,20 @@ def build_parser() -> argparse.ArgumentParser:
     add = actions.add_parser("add", help="register a project folder")
     add.add_argument("path", help="the project folder")
     add.add_argument("--name", help="name to use for it (default: the folder's name)")
+    _exclude_option(add, "skip this folder or file on every rescan (repeatable)")
     _data_dir_option(add)
     listing = actions.add_parser("list", help="list registered projects")
     _data_dir_option(listing)
+    exclude = actions.add_parser(
+        "exclude",
+        help="show or change what a project's rescans skip",
+        description="With no paths, show what a project's rescans skip. With paths, add "
+        "them; with --clear, start from an empty list.",
+    )
+    exclude.add_argument("name", help="the project's name")
+    exclude.add_argument("paths", nargs="*", metavar="PATH", help="folders, files or patterns")
+    exclude.add_argument("--clear", action="store_true", help="remove the saved exclusions first")
+    _data_dir_option(exclude)
     remove = actions.add_parser("remove", help="unregister a project and delete its scans")
     remove.add_argument("name", help="the project's name")
     remove.add_argument(
@@ -328,9 +355,11 @@ def _print_summary(args: argparse.Namespace, scan: ScanResult) -> None:
 def _scan(args: argparse.Namespace) -> int:
     root = Path(args.path)
     try:
-        scan = analyze_project(root, default_registry())
+        scan = analyze_project(root, default_registry(), exclude=args.exclude)
     except InvalidProjectRootError:
         return _error(f"{args.path!r} is not a folder")
+    except ValueError as error:
+        return _error(str(error))
 
     if not args.no_vulnerabilities:
         with _database(args, "advisory cache") as database:
@@ -360,13 +389,29 @@ def _project(args: argparse.Namespace) -> int:
         store = _store(database)
         if args.action == "add":
             try:
-                project = register_project(store, Path(args.path), args.name)
+                project = register_project(store, Path(args.path), args.name, excludes=args.exclude)
             except ProjectRootError as error:
                 raise _Failure(f"{args.path!r}: {error}") from None
             except ValueError as error:
                 raise _Failure(str(error)) from None
             print(f"Registered {clean_text(project.name)!r} ({clean_text(str(project.root))}).")
+            if project.excludes:
+                print(f"Rescans skip: {', '.join(clean_text(p) for p in project.excludes)}")
             print(f"Scan it with: dva rescan {clean_text(project.name)}")
+        elif args.action == "exclude":
+            project = _find(store, args.name)
+            if args.paths or args.clear:
+                kept = () if args.clear else project.excludes
+                try:
+                    project = set_project_excludes(store, project, (*kept, *args.paths))
+                except ValueError as error:
+                    raise _Failure(str(error)) from None
+            name = clean_text(project.name)
+            if project.excludes:
+                skipped = ", ".join(clean_text(p) for p in project.excludes)
+                print(f"Rescans of {name!r} skip: {skipped}")
+            else:
+                print(f"Rescans of {name!r} skip nothing beyond DVA's usual folders.")
         elif args.action == "list":
             rows = []
             for project in store.projects():
@@ -412,13 +457,20 @@ def _rescan_one(
 ) -> int:
     try:
         result = rescan_project(
-            store, project, default_registry(), render_report=render_json, check=check
+            store,
+            project,
+            default_registry(),
+            render_report=render_json,
+            check=check,
+            extra_excludes=args.exclude,
         )
     except InvalidProjectRootError:
         return _error(
             f"the folder registered for {clean_text(project.name)!r} can't be read "
             f"({clean_text(str(project.root))}); it may have been moved or deleted"
         )
+    except ValueError as error:  # An unusable --exclude pattern.
+        return _error(str(error))
     _write_reports(args, result.scan)
     if not args.quiet:
         _print_summary(args, result.scan)

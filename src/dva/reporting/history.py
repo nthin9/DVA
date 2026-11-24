@@ -95,6 +95,8 @@ def render_projects(projects: Sequence[tuple[Project, ScanRecord | None]]) -> st
     for project, latest in projects:
         lines.append(f"  {clean_text(project.name)}")
         lines.append(f"    folder: {clean_text(str(project.root))}")
+        if project.excludes:
+            lines.append(f"    skips: {', '.join(clean_text(p) for p in project.excludes)}")
         if latest is None:
             lines.append("    last scan: none yet")
         else:

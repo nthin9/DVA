@@ -161,7 +161,7 @@ def test_upgrading_a_database_keeps_cached_advisories(
 
     upgraded = open_database(path)
     versions = [row[0] for row in upgraded.execute("SELECT version FROM schema_migrations")]
-    assert versions == [1, 2]
+    assert versions == [1, 2, 3]
     cached = SqliteAdvisoryCache(upgraded).get_index("osv", PackageKey("npm", "lodash"))
     assert cached is not None and cached.retrieved_at == T0
     assert SqliteHistoryStore(upgraded).projects() == ()

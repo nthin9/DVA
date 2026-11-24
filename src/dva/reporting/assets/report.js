@@ -92,6 +92,9 @@
   });
   var result = "Dependency analysis: " + data.completion.replace(/_/g, " ") +
     ". Vulnerability check: " + data.vulnerability_status.replace(/_/g, " ") + ".";
+  if (data.excluded && data.excluded.length) {
+    result += " Excluded on request: " + data.excluded.join(", ") + ".";
+  }
   document.getElementById("result").textContent = result;
 
   // Lookups for checks and advisories.

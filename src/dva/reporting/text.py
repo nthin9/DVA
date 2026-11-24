@@ -44,6 +44,8 @@ def render_text(scan: ScanResult) -> str:
     overview = Overview.of(scan)
     lines: list[str] = [f"DVA {scan.tool_version}: scan of {clean_text(scan.project_name)!r}", ""]
     lines += _files(scan, overview)
+    if scan.excluded:
+        lines.append(f"Excluded on request: {', '.join(clean_text(p) for p in scan.excluded)}")
     lines.append("")
     report = scan.vulnerabilities
     if report is None:
