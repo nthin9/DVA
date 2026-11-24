@@ -1,8 +1,8 @@
-"""Deterministic JSON serialization of internal scan results.
+"""Deterministic JSON serialization of scan results: DVA's JSON report format.
 
-This is DVA's *internal* representation (for tests, snapshots, and later
-persistence). It is not the public, user-facing report schema, which is
-defined separately when reporting is implemented.
+The format is versioned by ``SCHEMA_VERSION`` and documented in
+``docs/REPORT_FORMAT.md``. A change that removes or renames a field, or
+changes what one means, needs a new version.
 
 Determinism: object keys are sorted, collections are emitted in a canonical
 order that does not depend on input order, and timestamps use a fixed UTC
@@ -23,7 +23,7 @@ from dva.domain.manifest import ManifestAnalysis
 from dva.domain.scan import ScanResult
 from dva.domain.vulnerability import Location, PackageCheck, VulnerabilityReport
 
-SCHEMA_VERSION = "dva.internal-scan/2"
+SCHEMA_VERSION = "dva.report/1"
 
 type JsonValue = str | int | bool | None | list[JsonValue] | dict[str, JsonValue]
 

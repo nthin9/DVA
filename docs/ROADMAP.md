@@ -28,13 +28,14 @@ caching advisories in SQLite and working offline from the cache; and matching
 installed versions against affected ranges using each ecosystem's own version
 rules.
 
+**Output.** The `dva scan` command with a terminal summary and exit codes for
+scripts, a versioned JSON report, and a standalone HTML report with an
+interactive dependency graph.
+
 ## Next
 
 **Projects and history.** Registering projects, keeping a history of scans in
 SQLite, rescanning, and comparing two scans.
-
-**Output.** A readable terminal summary, a versioned JSON report, and the
-interactive HTML dependency graph.
 
 **First release.** Windows packaging, install instructions, a security review,
 and documentation of what's supported and what isn't.

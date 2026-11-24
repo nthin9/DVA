@@ -37,7 +37,8 @@ are, and how each risk is handled.
 | A tampered or broken response from OSV | HTTPS only, timeouts, response size limits, and validation of the response before use |
 | A network failure is read as "nothing found" | Failed lookups are reported as failed, and cached results are shown with their age |
 | A version is matched against the wrong range | Version rules specific to each ecosystem, with tests at the edges of affected ranges |
-| Script injection through the HTML report | Outside text is escaped, data is passed as JSON, scripts are bundled locally, and a restrictive Content Security Policy is applied |
+| Script injection through the HTML report | Data is embedded as escaped JSON, the page only inserts text (never HTML), links are limited to http(s), the graph library is vendored and hash-checked, and a Content Security Policy allows only the page's own scripts by hash and no network access |
+| Escape codes in the terminal | Control and invisible formatting characters in package names and advisory text are replaced before printing |
 | Private information leaks out | No telemetry; reports leave out absolute paths by default; only the ecosystem and package name are sent to OSV |
 | DVA's own dependencies are compromised | Few dependencies, locked versions, and review of any dependency change |
 

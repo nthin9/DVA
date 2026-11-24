@@ -48,7 +48,7 @@ src/dva/
   matching/       checking whether a version falls in an affected  (built)
                   range, with each ecosystem's version rules
   storage/        SQLite persistence: the advisory cache so far    (built)
-  reporting/      JSON report and the HTML graph
+  reporting/      terminal summary, JSON report and HTML report   (built)
 ```
 
 The engine runs end to end today. The Python adapter reads `requirements.txt`
@@ -227,11 +227,39 @@ bad data into a scan.
 ## Reports and the dependency graph
 
 Reports are built from the finished scan result and do no analysis of their
-own. The HTML graph will use an existing graph library (Cytoscape.js is the
-current candidate) bundled into the file, so it opens offline without loading
-anything from the internet. Package names and advisory text come from outside
-sources, so they are escaped before being put into HTML and are passed to the
-page as data, never as code.
+own. All three formats use the same counts, so they always agree.
+
+Databases often publish the same vulnerability under their own IDs (a GitHub
+`GHSA-` advisory and a PyPI `PYSEC-` one) and list each other as aliases. The
+terminal summary and the HTML report show such copies once, under the most
+informative record, with the others listed as "also published as". The JSON
+report keeps every record.
+
+- The **terminal summary** lists affected packages with their advisories,
+  then everything that couldn't be checked, and ends with the overall result
+  and a reminder that "no matching advisory" isn't proof of safety. Text that
+  came from a scanned file or an advisory has control characters removed, so
+  it can't send escape codes to the terminal or hide text with
+  right-to-left overrides.
+- The **JSON report** is the full scan result in a versioned format,
+  described in [Report format](REPORT_FORMAT.md).
+- The **HTML report** is one file with its stylesheet, script and data inside,
+  so it opens offline. It shows summary cards, an interactive dependency
+  graph (one tree per lockfile; a manifest gets its own one-level tree only
+  when there's no lockfile next to it), each affected package with its
+  advisories, the packages that couldn't be checked, and the files found.
+
+The graph uses [Cytoscape.js](https://js.cytoscape.org/) (MIT License),
+vendored in `src/dva/reporting/assets/` together with its license and a note
+of where it came from: the exact npm release, checked against the registry's
+integrity value. A test checks the file's hash, so it can't change unnoticed.
+
+Package names and advisory text come from outside sources, so the page never
+treats them as HTML. The scan data is embedded as JSON with `<`, `>` and `&`
+escaped, so nothing in it can close its script element, and the page script
+only ever inserts text with `textContent`. Links are only created for
+`http(s)` URLs. A Content Security Policy allows exactly the page's own two
+inline scripts (by their SHA-256 hashes) and no network requests at all.
 
 ## A desktop app later
 

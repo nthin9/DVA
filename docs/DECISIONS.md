@@ -98,6 +98,13 @@ The first release draws the dependency graph as a single HTML file with its
 JavaScript bundled inside. It opens in any browser, works offline, and avoids
 building a GUI before the engine is finished.
 
+The graph is drawn with Cytoscape.js, a mature MIT-licensed graph library,
+rather than our own drawing code. It is vendored as one unmodified file from
+a specific npm release that had been out for several weeks, checked against
+the registry's integrity value, and pinned by a hash test. It contains no
+network or `eval` calls, which lets the report use a strict Content Security
+Policy.
+
 ## 10. Apache License 2.0
 
 DVA uses the Apache 2.0 license, a permissive license with an explicit patent
