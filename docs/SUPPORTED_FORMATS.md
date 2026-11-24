@@ -112,5 +112,62 @@ written in the file.
 
 ## npm
 
-Planned next: `package.json`, and `package-lock.json` / `npm-shrinkwrap.json`
-lockfile versions 2 and 3.
+npm covers JavaScript and TypeScript projects alike; they share one package
+ecosystem.
+
+### Read
+
+**`package.json`**
+
+- `dependencies`, `devDependencies` (labelled `dev`), `optionalDependencies`
+  (`optional`) and `peerDependencies` (`peer`, plus `optional` when
+  `peerDependenciesMeta` marks the peer optional). Packages listed in
+  `bundleDependencies` are also labelled `bundled`.
+- As npm does, an entry in `optionalDependencies` replaces one of the same
+  name in `dependencies`.
+- Every version spec is kept as written and tagged with where it installs
+  from: version ranges and tags (`^1.2.0`, `latest`) from the registry;
+  aliases (`npm:lodash@^4`) are recorded as the real package, with the name
+  they're installed under kept as the alias; git repositories (`git+https://`,
+  `github:user/repo`, `user/repo`); tarball URLs; local paths (`file:`,
+  `link:`); and the `workspace:` protocol. Passwords and tokens in URLs are
+  removed.
+- `workspaces`, `overrides` and `resolutions` are noted. Each workspace
+  member has its own `package.json`, which is scanned separately.
+
+Reported as problems: invalid package names, specs that aren't strings, and
+keys that appear twice in the same object (npm uses the last one, and so does
+DVA, but the file is marked as partially read).
+
+**`package-lock.json`** and **`npm-shrinkwrap.json`** (lockfile versions 2 and 3)
+
+- Every installed package from the `packages` section, keyed by the folder
+  it's installed in. The same package at two versions is two separate
+  entries.
+- Exact versions, where each package comes from (registry, git, URL or local
+  path), and npm's `dev`, `optional` and `peer` flags as labels.
+- The full dependency graph. Links are worked out the way Node.js finds a
+  module: from the depending package's folder, look in its `node_modules`,
+  then in each parent folder's, up to the project root. Linked folders are
+  followed.
+- The project itself and its workspace members aren't listed as packages.
+  Their dependencies are the project's direct dependencies. Only the
+  project's own `devDependencies` count, as with npm.
+- A dependency that isn't in the lockfile is reported. Missing optional
+  dependencies and optional peers are only noted, since leaving them out is
+  normal.
+
+Version 1 lockfiles, from npm 6 and older, use a different layout and are
+reported as unsupported. Registry URLs and integrity hashes are not copied
+into the results.
+
+### Recognised, not read
+
+| File | Status |
+|---|---|
+| `yarn.lock` | Not supported |
+| `pnpm-lock.yaml` | Not supported |
+| `bun.lock`, `bun.lockb` | Not supported |
+
+Folders named `node_modules` are never scanned: they hold installed copies of
+packages, and the lockfile already describes them.

@@ -1,0 +1,1 @@
+# Present to check that an unsupported lockfile is reported, not ignored.

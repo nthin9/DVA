@@ -8,8 +8,9 @@ vulnerability advisories. Everything runs on your own machine.
 
 DVA is in early development. The engine can find and read a project's Python
 dependency files (`requirements.txt` files, `pyproject.toml`, `uv.lock` and
-`poetry.lock`), including the full dependency tree from a lockfile. It doesn't
-read npm projects yet and doesn't look up vulnerabilities yet. See [Supported formats](docs/SUPPORTED_FORMATS.md) for exactly what is
+`poetry.lock`) and npm dependency files (`package.json`, `package-lock.json`
+and `npm-shrinkwrap.json`), including the full dependency tree from a
+lockfile. It doesn't look up vulnerabilities yet. See [Supported formats](docs/SUPPORTED_FORMATS.md) for exactly what is
 read. The CLI only prints its version (`dva --version`) for now.
 
 ## What it will do

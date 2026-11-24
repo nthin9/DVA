@@ -42,7 +42,7 @@ src/dva/
   contracts/      the interfaces adapters implement                (built)
   discovery/      finding and safely reading project files         (built)
   ecosystems/     the adapter registry and one adapter per         (built)
-                  ecosystem: python/ (built), npm/ to come
+                  ecosystem: python/ and npm/
   intelligence/   vulnerability sources; osv/ is the first
   matching/       checking whether a version falls in an affected range
   storage/        SQLite persistence
@@ -50,9 +50,10 @@ src/dva/
 ```
 
 The engine runs end to end today. The Python adapter reads `requirements.txt`
-files, `pyproject.toml`, `uv.lock` and `poetry.lock`; the files it recognises
-but can't read, such as `Pipfile.lock`, are listed in the results as
-unsupported. The exact list is in
+files, `pyproject.toml`, `uv.lock` and `poetry.lock`, and the npm adapter reads
+`package.json`, `package-lock.json` and `npm-shrinkwrap.json`. Files they
+recognise but can't read, such as `Pipfile.lock` or `yarn.lock`, are listed in
+the results as unsupported. The exact list is in
 [Supported formats](SUPPORTED_FORMATS.md). The tests also use a small made-up
 format to show that any adapter works with the engine.
 

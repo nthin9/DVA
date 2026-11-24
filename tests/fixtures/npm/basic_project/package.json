@@ -1,0 +1,28 @@
+{
+  "name": "basic-app",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "postinstall": "node -e \"require('fs').writeFileSync('POSTINSTALL_WAS_EXECUTED', 'yes')\""
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "@babel/core": "~7.26.0",
+    "lodash-legacy": "npm:lodash@^3.10.1",
+    "internal-tool": "git+https://user:s3cret@example.com/org/internal-tool.git#v1.2.0",
+    "shared-ui": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "5.7.2"
+  },
+  "optionalDependencies": {
+    "fsevents": "^2.3.3"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "react": { "optional": true }
+  }
+}
