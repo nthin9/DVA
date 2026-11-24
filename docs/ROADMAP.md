@@ -32,10 +32,11 @@ rules.
 scripts, a versioned JSON report, and a standalone HTML report with an
 interactive dependency graph.
 
-## Next
+**Projects and history.** Registering projects, rescanning them, keeping every
+scan as a snapshot in SQLite, listing a project's history, and comparing two
+scans. Described in [Projects and scan history](HISTORY.md).
 
-**Projects and history.** Registering projects, keeping a history of scans in
-SQLite, rescanning, and comparing two scans.
+## Next
 
 **First release.** Windows packaging, install instructions, a security review,
 and documentation of what's supported and what isn't.

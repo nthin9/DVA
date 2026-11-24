@@ -47,7 +47,8 @@ src/dva/
                   small HTTPS client
   matching/       checking whether a version falls in an affected  (built)
                   range, with each ecosystem's version rules
-  storage/        SQLite persistence: the advisory cache so far    (built)
+  storage/        SQLite persistence: the advisory cache, projects (built)
+                  and saved scans
   reporting/      terminal summary, JSON report and HTML report   (built)
 ```
 
@@ -223,6 +224,22 @@ and `~/.local/share/dva` elsewhere; setting `DVA_DATA_DIR` overrides it.
 The cache keeps advisory records as the raw text OSV returned and checks them
 again every time they're read, so a damaged or edited cache file can't slip
 bad data into a scan.
+
+Registered projects keep a name and the absolute folder path. A saved scan
+keeps its full JSON report and, in separate tables, the package versions it
+found, the status of each and the advisories that affected them. Those rows
+are what two scans are compared on, so a comparison is a few SQL reads rather
+than parsing two reports. Scans are only ever added; removing a project
+deletes its scans with it. Rows read back are turned into domain objects,
+which validate them, so a damaged or edited database gives an error rather
+than a wrong comparison.
+
+The application layer talks to this through a small history interface in
+`contracts/`, so a future desktop app can use the same code. Comparing two
+scans is a pure function of their saved data in `application/history.py`.
+It never treats a finding that the newer scan couldn't check as resolved.
+How comparisons are worded for users is described in
+[Projects and scan history](HISTORY.md).
 
 ## Reports and the dependency graph
 
