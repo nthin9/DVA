@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from urllib.parse import quote
 
@@ -32,6 +33,8 @@ DEFAULT_BASE_URL = "https://api.osv.dev"
 BATCH_SIZE = 1000
 #: Follow-up pages per batch before giving up; OSV pages only past 1000 results.
 MAX_PAGES = 20
+#: How many advisory records are downloaded at the same time.
+MAX_PARALLEL_FETCHES = 8
 
 
 class OsvSource:
@@ -99,6 +102,27 @@ class OsvSource:
             into[vuln["id"]] = AdvisoryStamp(vuln["id"], modified)
         token = result.get("next_page_token")
         return token if isinstance(token, str) and token else None
+
+    def fetch_records(self, advisory_ids: Sequence[str]) -> Mapping[str, str | ProviderError]:
+        """Fetch records a few at a time: OSV serves each record on its own, and
+        downloading them one after another made a first scan take half a minute.
+        At most ``MAX_PARALLEL_FETCHES`` requests are in flight at once."""
+        ids = list(dict.fromkeys(advisory_ids))
+        results: dict[str, str | ProviderError] = {}
+        if not ids:
+            return results
+
+        def one(advisory_id: str) -> str | ProviderError:
+            try:
+                return self.fetch_record(advisory_id)
+            except ProviderError as error:
+                return error
+
+        workers = min(MAX_PARALLEL_FETCHES, len(ids))
+        with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="dva-osv") as pool:
+            for advisory_id, result in zip(ids, pool.map(one, ids), strict=True):
+                results[advisory_id] = result
+        return results
 
     def fetch_record(self, advisory_id: str) -> str:
         url = f"{self._base_url}/v1/vulns/{quote(advisory_id, safe='')}"

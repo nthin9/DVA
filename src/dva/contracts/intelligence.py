@@ -61,6 +61,14 @@ class AdvisorySource(Protocol):
         """The raw record text for one advisory. Raises ProviderError."""
         ...
 
+    def fetch_records(self, advisory_ids: Sequence[str]) -> Mapping[str, str | ProviderError]:
+        """The raw record text for each advisory, or the error that stopped it.
+
+        A source may fetch several at once, within its own limits; one failed
+        record never stops the others.
+        """
+        ...
+
     def parse_record(self, raw: str) -> Advisory:
         """Parse raw record text. Raises ValueError if the record can't be used."""
         ...

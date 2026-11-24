@@ -294,20 +294,32 @@ def _records(
     advisories: dict[str, Advisory] = {}
     failed: dict[str, str] = {}
     stale = 0
+    cached_records = {
+        advisory_id: cache.get_record(source.provider_id, advisory_id) for advisory_id in wanted
+    }
+
+    def outdated(advisory_id: str, stamp: AdvisoryStamp) -> bool:
+        cached = cached_records[advisory_id]
+        return cached is None or cached.modified < stamp.modified
+
+    to_fetch = [i for i, stamp in sorted(wanted.items()) if live and outdated(i, stamp)]
+    # Downloads may run in parallel inside the source; the cache is only
+    # written from this thread.
+    fetched = source.fetch_records(to_fetch) if to_fetch else {}
     for advisory_id, stamp in sorted(wanted.items()):
-        cached = cache.get_record(source.provider_id, advisory_id)
+        cached = cached_records[advisory_id]
         raw = cached.raw if cached is not None else None
-        if live and (cached is None or cached.modified < stamp.modified):
-            try:
-                raw = source.fetch_record(advisory_id)
-            except ProviderError as error:
+        if advisory_id in fetched:
+            result = fetched[advisory_id]
+            if isinstance(result, ProviderError):
                 if raw is None:
                     failed[advisory_id] = (
-                        f"the record for {advisory_id} could not be fetched ({error})"
+                        f"the record for {advisory_id} could not be fetched ({result})"
                     )
                     continue
                 stale += 1  # keep using the older cached copy
             else:
+                raw = result
                 cache.put_record(source.provider_id, advisory_id, stamp.modified, raw, now)
         if raw is None:
             failed[advisory_id] = f"the record for {advisory_id} is not cached"
