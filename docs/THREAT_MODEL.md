@@ -39,7 +39,8 @@ are, and how each risk is handled.
 | A version is matched against the wrong range | Version rules specific to each ecosystem, with tests at the edges of affected ranges |
 | Script injection through the HTML report | Data is embedded as escaped JSON, the page only inserts text (never HTML), links are limited to http(s), the graph library is vendored and hash-checked, and a Content Security Policy allows only the page's own scripts by hash and no network access |
 | Escape codes in the terminal | Control and invisible formatting characters in package names and advisory text are replaced before printing |
-| Private information leaks out | No telemetry; reports leave out absolute paths by default; only the ecosystem and package name are sent to OSV |
+| Private information leaks out | No telemetry; reports leave out absolute paths by default; only the ecosystem and package name are sent to OSV. A registered project's folder path is kept only in the local database and never written into a report |
+| A damaged or edited database changes what a comparison says | Saved rows are validated when read; anything invalid is an error, not a result. Saved scans are never modified by DVA |
 | DVA's own dependencies are compromised | Few dependencies, locked versions, and review of any dependency change |
 
 ## What gets sent over the network

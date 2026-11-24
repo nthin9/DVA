@@ -13,7 +13,9 @@ and `npm-shrinkwrap.json`), including the full dependency tree from a
 lockfile. It checks the exact versions it finds against
 [OSV](https://osv.dev), keeps the advisory data in a local cache, and falls
 back to that cache when you're offline. Results come as a terminal summary,
-a JSON report and an HTML report with an interactive dependency graph. See
+a JSON report and an HTML report with an interactive dependency graph.
+Projects can be registered and rescanned, with every scan kept in a local
+history that can be compared. See
 [Supported formats](docs/SUPPORTED_FORMATS.md) for exactly what is read.
 
 ## Install
@@ -61,9 +63,20 @@ The exit code tells scripts what happened:
 | 4 | The scan couldn't run, for example because the folder doesn't exist |
 | 2 | Invalid command-line arguments |
 
-Advisory data is cached in `%LOCALAPPDATA%\DVA` on Windows (elsewhere, see
+To follow a project over time, register it once and rescan it whenever you
+like. Each rescan is saved, and `dva compare` shows what changed between two
+scans: packages added, removed or upgraded, and advisories that appeared or
+are no longer reported. See [Projects and scan history](docs/HISTORY.md).
+
+```powershell
+dva project add C:\code\myapp
+dva rescan myapp
+dva compare myapp
+```
+
+Advisory data and scan history are kept in `%LOCALAPPDATA%\DVA` on Windows (elsewhere, see
 [Architecture](docs/ARCHITECTURE.md#storage)). Use `--data-dir` or the
-`DVA_DATA_DIR` environment variable to put it somewhere else.
+`DVA_DATA_DIR` environment variable to put them somewhere else.
 
 ## What it will do
 
@@ -103,6 +116,7 @@ macOS should work too, but Windows is the main target).
 - [Architecture](docs/ARCHITECTURE.md): how the code is organised and how a scan works
 - [Supported formats](docs/SUPPORTED_FORMATS.md): which dependency files DVA reads, and how fully
 - [Report format](docs/REPORT_FORMAT.md): the fields of the JSON report
+- [Projects and scan history](docs/HISTORY.md): registering, rescanning and comparing
 - [Roadmap](docs/ROADMAP.md): what's planned and in what order
 - [Threat model](docs/THREAT_MODEL.md): what DVA defends against and its known limits
 - [Design decisions](docs/DECISIONS.md): the main choices and why they were made
