@@ -215,3 +215,36 @@ def test_names_from_scanned_files_are_cleaned_in_comparisons(
     main(["compare", "app", *data])
     out = capsys.readouterr().out
     assert "\x1b" not in out
+
+
+def test_cache_info_and_clear(
+    tmp_path: Path, data: list[str], fake_osv: FakeOsvTransport, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = app(tmp_path)
+    main(["project", "add", str(root), *data])
+    main(["rescan", "app", "--quiet", *data])
+    capsys.readouterr()
+    assert main(["cache", "info", *data]) == EXIT_CLEAN
+    assert "1 package lookup(s), 1 advisory record(s)" in capsys.readouterr().out
+    assert main(["cache", "clear", *data]) == EXIT_ERROR
+    assert main(["cache", "clear", "--yes", *data]) == EXIT_CLEAN
+    main(["cache", "info", *data])
+    assert "0 package lookup(s), 0 advisory record(s)" in capsys.readouterr().out
+    # Saved scans survive, and an offline rescan now has nothing to use.
+    main(["history", "app", *data])
+    assert "#1" in capsys.readouterr().out
+    assert main(["rescan", "app", "--offline", "--quiet", *data]) == EXIT_INCOMPLETE
+
+
+def test_private_registry_flag_reaches_the_check(
+    tmp_path: Path, data: list[str], fake_osv: FakeOsvTransport
+) -> None:
+    root = tmp_path / "corp"
+    root.mkdir()
+    (root / "requirements.txt").write_text(
+        "--index-url https://pkgs.corp.example/simple\ncorp-secret==1.0\n", encoding="utf-8"
+    )
+    main(["scan", str(root), "--quiet", *data])
+    assert "corp-secret" not in json.dumps(fake_osv.requests)
+    main(["scan", str(root), "--quiet", "--include-private-registries", *data])
+    assert "corp-secret" in json.dumps(fake_osv.requests)

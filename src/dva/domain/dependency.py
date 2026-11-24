@@ -12,17 +12,23 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from dva.domain.identity import PackageIdentity
+from dva.domain.paths import require_relative_path
 
 
 class SourceKind(StrEnum):
     """Where a dependency comes from.
 
-    Only ``REGISTRY`` packages have versions that a vulnerability database
-    can be asked about; for the other kinds the version (if any) may be a
-    commit, a local path, or nothing meaningful at all.
+    Only registry packages have versions that a vulnerability database can
+    be asked about; for the other kinds the version (if any) may be a
+    commit, a local path, or nothing meaningful at all. ``REGISTRY`` is the
+    ecosystem's public registry (PyPI, the npm registry). ``OTHER_REGISTRY``
+    is any other package index, such as a company's private registry or a
+    mirror: its versions are real releases, but its package names may be
+    private.
     """
 
     REGISTRY = "registry"
+    OTHER_REGISTRY = "other_registry"
     GIT = "git"
     URL = "url"
     PATH = "path"
@@ -62,6 +68,10 @@ class DeclaredRequirement:
     ``extras`` lists requested optional features (for example the ``socks``
     in ``requests[socks]``). ``alias`` is the local name the dependency is
     installed under when it differs from the real package name.
+    ``origin`` is the project-relative path of the file the declaration is
+    written in, when that isn't the manifest itself (a file it includes);
+    ``line`` then refers to that file. ``constrained_to`` is an exact version
+    that a separate constraints file pins the requirement to.
     """
 
     identity: PackageIdentity
@@ -72,6 +82,8 @@ class DeclaredRequirement:
     source: SourceKind = SourceKind.UNKNOWN
     extras: tuple[str, ...] = ()
     alias: str | None = None
+    origin: str | None = None
+    constrained_to: str | None = None
 
     def __post_init__(self) -> None:
         _require_optional_text("constraint", self.constraint)
@@ -82,6 +94,9 @@ class DeclaredRequirement:
             _require_labels("alias", (self.alias,))
         if self.line is not None and self.line < 1:
             raise ValueError(f"line must be >= 1: {self.line}")
+        if self.origin is not None:
+            require_relative_path(self.origin)
+        _require_optional_text("constrained_to", self.constrained_to)
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,7 +106,9 @@ class ResolvedPackage:
     ``node_id`` is unique within one manifest analysis. The same package name
     may appear several times at different versions, so a node is never keyed
     by name alone. ``version`` is recorded verbatim; for non-registry
-    sources it may not be a release version at all.
+    sources it may not be a release version at all. ``markers`` holds the
+    lockfile's raw environment conditions for installing this package at all,
+    when it records them per package.
     """
 
     node_id: str
@@ -99,6 +116,7 @@ class ResolvedPackage:
     version: str
     groups: tuple[str, ...] = ()
     source: SourceKind = SourceKind.UNKNOWN
+    markers: str | None = None
 
     def __post_init__(self) -> None:
         if not self.node_id or not self.node_id.strip():
@@ -106,6 +124,7 @@ class ResolvedPackage:
         if not self.version or not self.version.strip():
             raise ValueError("version must be non-empty")
         _require_groups(self.groups)
+        _require_optional_text("markers", self.markers)
 
 
 @dataclass(frozen=True, slots=True)

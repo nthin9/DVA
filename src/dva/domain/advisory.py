@@ -56,26 +56,6 @@ class AffectedRange:
 
 
 @dataclass(frozen=True, slots=True)
-class AffectedPackage:
-    """A package an advisory applies to, with its affected ranges and versions.
-
-    ``ecosystem`` is DVA's ecosystem identifier (``pypi``, ``npm``) when DVA
-    supports the ecosystem, and the database's own name for it otherwise.
-    ``versions`` lists affected versions explicitly, when the database does.
-    """
-
-    ecosystem: str
-    name: str
-    purl: str | None = None
-    ranges: tuple[AffectedRange, ...] = ()
-    versions: tuple[str, ...] = ()
-
-    def __post_init__(self) -> None:
-        if not self.ecosystem or not self.name:
-            raise ValueError("affected package needs an ecosystem and a name")
-
-
-@dataclass(frozen=True, slots=True)
 class Severity:
     """A severity score as published, for example a CVSS vector string.
 
@@ -90,6 +70,29 @@ class Severity:
     def __post_init__(self) -> None:
         if not self.type or not self.score:
             raise ValueError("severity needs a type and a score")
+
+
+@dataclass(frozen=True, slots=True)
+class AffectedPackage:
+    """A package an advisory applies to, with its affected ranges and versions.
+
+    ``ecosystem`` is DVA's ecosystem identifier (``pypi``, ``npm``) when DVA
+    supports the ecosystem, and the database's own name for it otherwise.
+    ``versions`` lists affected versions explicitly, when the database does.
+    ``severities`` are scores the advisory gives for this package only; OSV
+    uses them instead of advisory-wide scores when they differ per package.
+    """
+
+    ecosystem: str
+    name: str
+    purl: str | None = None
+    ranges: tuple[AffectedRange, ...] = ()
+    versions: tuple[str, ...] = ()
+    severities: tuple[Severity, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not self.ecosystem or not self.name:
+            raise ValueError("affected package needs an ecosystem and a name")
 
 
 @dataclass(frozen=True, slots=True)

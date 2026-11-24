@@ -300,3 +300,40 @@ def test_the_scan_result_reports_the_status(env: Env) -> None:
         scan(lockfile(pkg("requests", "2.30.0"))), env.source, env.cache, clock=lambda: T0
     )
     assert result.vulnerability_status is VulnerabilityStatus.COMPLETE
+
+
+def test_packages_from_another_registry_are_not_sent_by_default(env: Env) -> None:
+    private = ResolvedPackage(
+        "corp-secret@1.0",
+        pypi_identity("corp-secret", from_registry=False),
+        "1.0",
+        source=SourceKind.OTHER_REGISTRY,
+    )
+    target = scan(lockfile(private, pkg("idna", "3.10")))
+    report = env.run(target)
+    names = {q["package"]["name"] for q in env.transport.batch_queries()}
+    assert "corp-secret" not in names and "idna" in names
+    check = by_name(report)[("corp-secret", None)]
+    assert check.status is CheckStatus.NOT_CHECKED
+    assert "registry other than the public one" in check.reasons[0]
+
+    env.transport.requests.clear()
+    allowed = check_vulnerabilities(
+        target, env.source, env.cache, other_registries=True, clock=lambda: T0
+    )
+    assert allowed.vulnerabilities is not None
+    names = {q["package"]["name"] for q in env.transport.batch_queries()}
+    assert "corp-secret" in names
+    assert by_name(allowed.vulnerabilities)[("corp-secret", "1.0")].status is (
+        CheckStatus.NO_MATCHING_ADVISORY
+    )
+
+
+def test_a_constraints_pin_is_checked_where_the_requirement_is_written(env: Env) -> None:
+    from dataclasses import replace
+
+    ranged = replace(req("requests", ">=2", line=4), constrained_to="2.30.0", origin="base.txt")
+    report = env.run(scan(manifest(ranged)))
+    check = by_name(report)[("requests", "2.30.0")]
+    assert check.status is CheckStatus.AFFECTED
+    assert [(loc.path, loc.line) for loc in check.locations] == [("base.txt", 4)]

@@ -183,6 +183,7 @@ def _affected(entry: object, fail: Any) -> AffectedPackage:
         purl=purl if isinstance(purl, str) and purl.startswith("pkg:") else None,
         ranges=tuple(_range(item, name, fail) for item in ranges),
         versions=tuple(versions),
+        severities=_severities(entry.get("severity")),
     )
 
 

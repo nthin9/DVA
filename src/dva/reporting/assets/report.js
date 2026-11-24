@@ -157,6 +157,12 @@
       var sev = [];
       if (a.database_severity) { sev.push(a.database_severity + " (rated by the database)"); }
       a.severities.forEach(function (s) { sev.push(s.type + " " + s.score); });
+      group.forEach(function (f) {
+        (f.severities || []).forEach(function (s) {
+          var plain = s.type + " " + s.score, text = plain + " (for this package)";
+          if (sev.indexOf(plain) < 0 && sev.indexOf(text) < 0) { sev.push(text); }
+        });
+      });
       if (sev.length) { facts.appendChild(el("li", "Severity: " + sev.join("; "))); }
       if (finding.fixed_versions.length) {
         facts.appendChild(el("li", "Fixed in: " + finding.fixed_versions.join(", ")));

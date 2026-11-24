@@ -149,3 +149,19 @@ def test_parsing_does_not_modify_the_input() -> None:
     before = copy.deepcopy(record)
     parse_record(record)
     assert record == before
+
+
+def test_package_level_severity_is_read() -> None:
+    record = minimal(
+        affected=[
+            {
+                "package": {"ecosystem": "npm", "name": "a"},
+                "severity": [{"type": "CVSS_V3", "score": "CVSS:3.1/AV:N/AC:L"}, {"bad": 1}],
+                "versions": ["1.0.0"],
+            },
+            {"package": {"ecosystem": "npm", "name": "b"}, "versions": ["1.0.0"]},
+        ]
+    )
+    first, second = parse_record(record).affected
+    assert [(s.type, s.score) for s in first.severities] == [("CVSS_V3", "CVSS:3.1/AV:N/AC:L")]
+    assert second.severities == ()

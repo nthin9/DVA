@@ -18,9 +18,19 @@ DVA follows the syntax pip documents for requirements files.
   endings.
 - `-r other.txt` / `--requirement other.txt`. The included file is read
   relative to the including one, and its requirements are added to the
-  including file's results, the way pip would install them. Included files
-  have to be inside the project: references outside it, to a URL, in a loop,
-  or nested more than 8 deep are reported and not followed.
+  including file's results, the way pip would install them. Each keeps the
+  path and line number of the file it is written in. Included files have to
+  be inside the project: references outside it, to a URL, in a loop, or
+  nested more than 8 deep are reported and not followed.
+- `-c constraints.txt` / `--constraint constraints.txt`, read with the same
+  rules. A constraints file adds no requirements, but when it pins a package
+  to one exact version (`name==1.2.3`) and the requirement only gives a range,
+  that version is what pip installs, so it is the version DVA checks. A pin
+  the requirement doesn't allow, or two different pins for one package, is
+  reported and not used.
+- `--index-url` / `-i`. If it points anywhere other than PyPI, the file's
+  requirements are marked as coming from another registry (see
+  [below](#packages-from-other-registries)).
 - `--hash` options are accepted. Requirements that name a URL
   (`name @ https://...`) are kept, marked with where they come from.
 
@@ -31,9 +41,9 @@ Reported as not analyzed, which marks the file as partially read:
 - environment variables such as `${TOKEN}`, which DVA never expands;
 - options it doesn't recognise.
 
-Noted but harmless: constraints files (`-c`), which limit versions but don't
-add requirements, and installer options such as `--index-url`. Their values
-are not copied into the results, because they can contain credentials.
+Noted but harmless: other installer options, such as `--extra-index-url`.
+Option values are never copied into the results, because they can contain
+credentials.
 
 **`pyproject.toml`**
 
@@ -91,8 +101,9 @@ hashes are not copied into the results.
 
 A `poetry.lock` doesn't record which packages the project asked for directly,
 so the graph from this file alone has no direct dependencies; the results say
-so. Lock-version 2.1's per-package platform conditions are not recorded yet,
-and older lock-versions (1.x) are reported as unsupported.
+so. Lock-version 2.1's per-package conditions (`markers`) are kept on each
+package; when they differ per group they are combined with `or`. Older
+lock-versions (1.x) are reported as unsupported.
 
 ### Recognised, not read
 
@@ -171,3 +182,22 @@ into the results.
 
 Folders named `node_modules` are never scanned: they hold installed copies of
 packages, and the lockfile already describes them.
+
+## Packages from other registries
+
+Most packages come from the ecosystem's public registry: PyPI, or the npm
+registry (`registry.npmjs.org`, also served as `registry.yarnpkg.com`). DVA
+marks packages from anywhere else, such as a company's private registry or a
+mirror, with the source `other_registry`. It recognises them in:
+
+- `package-lock.json` and `npm-shrinkwrap.json`: a tarball from another host;
+- `uv.lock`: a `registry` source that isn't PyPI;
+- `poetry.lock`: a `legacy` source whose URL isn't PyPI;
+- requirements files: a `--index-url` that isn't PyPI.
+
+The names of such packages may be private, so by default they are not looked
+up in OSV and are listed as not checked, with that reason.
+`--include-private-registries` looks them up as well. Only the package's name
+and ecosystem are sent, as for any other package. Not detected yet: indexes
+configured outside these files (in `pip.conf`, `.npmrc`, or `pyproject.toml`
+tool settings), and `--extra-index-url`, which mixes PyPI with another index.

@@ -28,6 +28,11 @@ def is_valid_name(name: str) -> bool:
     return bool(_PART.match(name))
 
 
+#: Hosts that serve the public npm registry. A tarball from any other host
+#: comes from a different registry, which may be private.
+PUBLIC_REGISTRY_HOSTS = frozenset({"registry.npmjs.org", "registry.yarnpkg.com"})
+
+
 def identity(name: str, *, from_registry: bool = True) -> PackageIdentity:
     """Identity for an npm package; the scope (``@babel``) becomes the namespace.
 

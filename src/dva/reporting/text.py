@@ -8,6 +8,7 @@ it; DVA doesn't compute scores.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime
 
 from dva.domain.advisory import Advisory
@@ -15,6 +16,7 @@ from dva.domain.manifest import ParseStatus
 from dva.domain.scan import ScanResult
 from dva.domain.vulnerability import (
     CheckStatus,
+    Finding,
     PackageCheck,
     VulnerabilityReport,
     VulnerabilityStatus,
@@ -135,7 +137,7 @@ def _affected(check: PackageCheck, advisories: dict[str, Advisory]) -> list[str]
             lines.append(f"      also published as: {also}")
         if advisory.summary:
             lines.append(f"      {clean_text(advisory.summary)}")
-        severity = _severity(advisory)
+        severity = _severity(advisory, group)
         if severity:
             lines.append(f"      severity: {severity}")
         fixed_versions = list(dict.fromkeys(v for f in group for v in f.fixed_versions))
@@ -152,11 +154,17 @@ def _affected(check: PackageCheck, advisories: dict[str, Advisory]) -> list[str]
     return lines
 
 
-def _severity(advisory: Advisory) -> str:
+def _severity(advisory: Advisory, group: Sequence[Finding]) -> str:
     parts = []
     if advisory.database_severity:
         parts.append(f"{clean_text(advisory.database_severity)} (rated by the database)")
     parts += [f"{clean_text(s.type)} {clean_text(s.score)}" for s in advisory.severities]
+    package = dict.fromkeys(s for f in group for s in f.severities)
+    parts += [
+        f"{clean_text(s.type)} {clean_text(s.score)} (for this package)"
+        for s in package
+        if s not in advisory.severities
+    ]
     return "; ".join(parts)
 
 

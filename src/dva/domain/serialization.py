@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 
-from dva.domain.advisory import Advisory, AffectedPackage
+from dva.domain.advisory import Advisory, AffectedPackage, Severity
 from dva.domain.dependency import DeclaredRequirement, DependencyEdge, ResolvedPackage
 from dva.domain.diagnostics import Diagnostic
 from dva.domain.identity import PackageIdentity
@@ -69,6 +69,8 @@ def _requirement(requirement: DeclaredRequirement) -> dict[str, JsonValue]:
         "source": requirement.source.value,
         "extras": [e for e in sorted(requirement.extras)],
         "alias": requirement.alias,
+        "origin": requirement.origin,
+        "constrained_to": requirement.constrained_to,
     }
 
 
@@ -93,6 +95,7 @@ def _package(package: ResolvedPackage) -> dict[str, JsonValue]:
         "version": package.version,
         "groups": [g for g in sorted(package.groups)],
         "source": package.source.value,
+        "markers": package.markers,
     }
 
 
@@ -143,6 +146,10 @@ def _strings(values: tuple[str, ...]) -> list[JsonValue]:
     return [v for v in values]
 
 
+def _severity_list(severities: tuple[Severity, ...]) -> list[JsonValue]:
+    return [{"type": s.type, "score": s.score, "source": s.source} for s in severities]
+
+
 def _affected(package: AffectedPackage) -> dict[str, JsonValue]:
     return {
         "ecosystem": package.ecosystem,
@@ -157,6 +164,7 @@ def _affected(package: AffectedPackage) -> dict[str, JsonValue]:
             for r in package.ranges
         ],
         "versions": _strings(package.versions),
+        "severities": _severity_list(package.severities),
     }
 
 
@@ -167,9 +175,7 @@ def _advisory(advisory: Advisory) -> dict[str, JsonValue]:
         "related": _strings(advisory.related),
         "summary": advisory.summary,
         "details": advisory.details,
-        "severities": [
-            {"type": s.type, "score": s.score, "source": s.source} for s in advisory.severities
-        ],
+        "severities": _severity_list(advisory.severities),
         "database_severity": advisory.database_severity,
         "references": [{"type": r.type, "url": r.url} for r in advisory.references],
         "affected": [_affected(p) for p in advisory.affected],
@@ -200,6 +206,7 @@ def _check(check: PackageCheck) -> dict[str, JsonValue]:
                 "matched_by": _strings(f.matched_by),
                 "fixed_versions": _strings(f.fixed_versions),
                 "last_affected": _strings(f.last_affected),
+                "severities": _severity_list(f.severities),
             }
             for f in sorted(check.findings, key=lambda f: f.advisory_id)
         ],

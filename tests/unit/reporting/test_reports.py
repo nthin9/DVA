@@ -181,3 +181,19 @@ def test_copies_of_one_vulnerability_are_grouped_under_the_richest_record() -> N
     findings = tuple(Finding(i, ("range",)) for i in ("PYSEC-1", "GHSA-2", "GHSA-1"))
     groups = group_findings(findings, advisories)
     assert [[f.advisory_id for f in g] for g in groups] == [["GHSA-1", "PYSEC-1"], ["GHSA-2"]]
+
+
+def test_package_level_severity_is_shown_in_every_format() -> None:
+    from dataclasses import replace
+
+    scan = hostile_scan()
+    assert scan.vulnerabilities is not None
+    check = scan.vulnerabilities.checks[0]
+    finding = replace(check.findings[0], severities=(Severity("CVSS_V4", "CVSS:4.0/AV:N"),))
+    report = replace(scan.vulnerabilities, checks=(replace(check, findings=(finding,)),))
+    scan = replace(scan, vulnerabilities=report)
+    assert "CVSS_V4 CVSS:4.0/AV:N (for this package)" in render_text(scan)
+    data = json.loads(render_json(scan))
+    (found,) = data["vulnerabilities"]["checks"][0]["findings"]
+    assert found["severities"] == [{"type": "CVSS_V4", "score": "CVSS:4.0/AV:N", "source": None}]
+    assert "(for this package)" in (ASSETS / "report.js").read_text(encoding="utf-8")

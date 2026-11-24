@@ -15,6 +15,10 @@ Exit codes of ``dva scan`` and ``dva rescan``:
 the order 4, 1, 3, 0. ``dva compare`` returns 1 when the newer scan reports
 an advisory finding the older one didn't, and 0 otherwise. Other commands
 return 0, or 4 on an error.
+
+``--include-private-registries`` lets ``scan`` and ``rescan`` look up packages
+from registries other than PyPI or the npm registry; by default their names
+are kept private and they are listed as not checked.
 """
 
 from __future__ import annotations
@@ -24,6 +28,7 @@ import sqlite3
 import sys
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
 
 from dva import __version__
@@ -53,6 +58,8 @@ from dva.reporting.json_report import render_json
 from dva.reporting.overview import clean_text
 from dva.reporting.text import render_text
 from dva.storage.advisory_cache import SqliteAdvisoryCache
+from dva.storage.advisory_cache import clear as clear_cache
+from dva.storage.advisory_cache import summarize as summarize_cache
 from dva.storage.database import DatabaseError, open_database
 from dva.storage.history import SqliteHistoryStore
 from dva.storage.locations import DATABASE_NAME, default_data_dir
@@ -98,6 +105,12 @@ def _check_options(parser: argparse.ArgumentParser) -> None:
         "--no-vulnerabilities",
         action="store_true",
         help="only analyze dependencies; skip the vulnerability check",
+    )
+    parser.add_argument(
+        "--include-private-registries",
+        action="store_true",
+        help="also look up packages from registries other than PyPI or the npm registry "
+        "(their names are sent to OSV)",
     )
     _data_dir_option(parser)
     parser.add_argument("--quiet", action="store_true", help="don't print the summary")
@@ -173,6 +186,20 @@ def build_parser() -> argparse.ArgumentParser:
     compare.add_argument("old", type=int, nargs="?", metavar="OLD", help="the older scan")
     compare.add_argument("new", type=int, nargs="?", metavar="NEW", help="the newer scan")
     _data_dir_option(compare)
+
+    cache = commands.add_parser(
+        "cache",
+        help="show or clear cached advisory data",
+        description="Show how much advisory data is cached and how old it is, or clear it. "
+        "Online scans always ask OSV for the current advisory list; the cache is what "
+        "offline scans, and scans where OSV can't be reached, fall back to.",
+    )
+    cache_actions = cache.add_subparsers(dest="action", metavar="<action>", required=True)
+    info = cache_actions.add_parser("info", help="show what is cached")
+    _data_dir_option(info)
+    clear = cache_actions.add_parser("clear", help="delete all cached advisory data")
+    clear.add_argument("--yes", action="store_true", help="confirm deleting the cache")
+    _data_dir_option(clear)
     return parser
 
 
@@ -185,6 +212,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "rescan": _rescan,
         "history": _history,
         "compare": _compare,
+        "cache": _cache,
     }
     command = commands.get(args.command)
     if command is None:
@@ -239,7 +267,13 @@ def _checker(
         return None
     source = OsvSource(UrllibTransport())
     cache = SqliteAdvisoryCache(database)
-    return lambda scan: check_vulnerabilities(scan, source, cache, offline=args.offline)
+    return lambda scan: check_vulnerabilities(
+        scan,
+        source,
+        cache,
+        offline=args.offline,
+        other_registries=args.include_private_registries,
+    )
 
 
 def _write_reports(args: argparse.Namespace, scan: ScanResult) -> None:
@@ -390,6 +424,33 @@ def _compare(args: argparse.Namespace) -> int:
         comparison = compare_scans(store, project, args.old, args.new)
     sys.stdout.write(render_comparison(project, comparison))
     return EXIT_AFFECTED if comparison.reports_more else EXIT_CLEAN
+
+
+def _cache(args: argparse.Namespace) -> int:
+    with _database(args, "advisory cache") as database:
+        if args.action == "info":
+            summary = summarize_cache(database)
+            print(
+                f"Cached advisory data: {summary.packages} package lookup(s), "
+                f"{summary.advisories} advisory record(s)."
+            )
+            if summary.oldest is not None and summary.newest is not None:
+                print(f"Oldest lookup: {_when(summary.oldest)}")
+                print(f"Newest lookup: {_when(summary.newest)}")
+            return EXIT_CLEAN
+        if not args.yes:
+            raise _Failure("this would delete all cached advisory data; run again with --yes")
+        before = clear_cache(database)
+    print(
+        f"Deleted {before.packages} package lookup(s) and {before.advisories} advisory "
+        "record(s). Saved scans were kept. Offline scans have no data until the next "
+        "online scan."
+    )
+    return EXIT_CLEAN
+
+
+def _when(value: datetime) -> str:
+    return value.strftime("%Y-%m-%d %H:%M UTC")
 
 
 def exit_code(scan: ScanResult) -> int:

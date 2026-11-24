@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from dva.contracts.intelligence import AdvisoryStamp, CachedIndex, CachedRecord, PackageKey
@@ -101,3 +102,36 @@ class _Transaction:
 
     def __exit__(self, kind: object, *_: object) -> None:
         self._db.execute("ROLLBACK" if kind is not None else "COMMIT")
+
+
+@dataclass(frozen=True, slots=True)
+class CacheSummary:
+    """What the advisory cache holds, for ``dva cache info``."""
+
+    packages: int
+    advisories: int
+    oldest: datetime | None
+    newest: datetime | None
+
+
+def summarize(connection: sqlite3.Connection) -> CacheSummary:
+    packages, oldest, newest = connection.execute(
+        "SELECT COUNT(*), MIN(retrieved_at), MAX(retrieved_at) FROM package_lookups"
+    ).fetchone()
+    (advisories,) = connection.execute("SELECT COUNT(*) FROM advisories").fetchone()
+    return CacheSummary(
+        int(packages),
+        int(advisories),
+        _load(oldest) if isinstance(oldest, str) else None,
+        _load(newest) if isinstance(newest, str) else None,
+    )
+
+
+def clear(connection: sqlite3.Connection) -> CacheSummary:
+    """Delete every cached lookup and advisory record. Saved scans are kept."""
+    before = summarize(connection)
+    with _Transaction(connection):
+        connection.execute("DELETE FROM package_advisories")
+        connection.execute("DELETE FROM package_lookups")
+        connection.execute("DELETE FROM advisories")
+    return before
