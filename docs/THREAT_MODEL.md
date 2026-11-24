@@ -59,7 +59,8 @@ when the dependency files record it; see
 [Supported formats](SUPPORTED_FORMATS.md#packages-from-other-registries).
 
 Requests go only to `https://api.osv.dev`, with a timeout, a cap on the
-response size, and no redirects followed. The User-Agent names DVA and its
+response size, and no redirects followed. At most eight run at the same time,
+and each one backs off and retries a few times if OSV says it is busy. The User-Agent names DVA and its
 version, nothing about the user.
 
 ## Known limits
