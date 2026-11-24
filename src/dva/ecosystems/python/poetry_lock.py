@@ -5,7 +5,8 @@ but not which packages the project itself asked for; those live in
 ``pyproject.toml``. So the graph has links between packages but no direct
 edges, and an info diagnostic says so. Lock-version 2.1 also records the
 dependency groups each package belongs to, which are kept as
-``group:<name>`` labels.
+``group:<name>`` labels, and the conditions under which each package is
+installed, which are kept as the package's markers.
 
 When a dependency name is locked more than once (for different platforms),
 the dependency's version range is checked against each candidate using
@@ -29,7 +30,7 @@ from dva.domain.dependency import ResolvedPackage, SourceKind
 from dva.domain.diagnostics import Diagnostic, DiagnosticLevel
 from dva.domain.manifest import ParseStatus
 from dva.ecosystems.python.lockgraph import LockGraph
-from dva.ecosystems.python.names import canonical, identity
+from dva.ecosystems.python.names import canonical, identity, is_public_index
 from dva.ecosystems.python.tomlfile import failure, load_toml
 from dva.ecosystems.text import preview
 
@@ -148,6 +149,7 @@ def _read_entries(state: _State, graph: LockGraph, raw_packages: list[object]) -
             version,
             groups=_groups(table.get("groups")),
             source=kind,
+            markers=_package_markers(table.get("markers")),
         )
         entries.append(_Entry(name, version, node_id, table))
     return entries
@@ -158,12 +160,35 @@ def _source_kind(state: _State, name: str, source: object) -> SourceKind:
         return SourceKind.REGISTRY
     kind = source.get("type") if isinstance(source, dict) else None
     if isinstance(kind, str) and kind in _SOURCE_KINDS:
+        if _SOURCE_KINDS[kind] is SourceKind.REGISTRY:
+            url = source.get("url") if isinstance(source, dict) else None
+            public = isinstance(url, str) and is_public_index(url)
+            return SourceKind.REGISTRY if public else SourceKind.OTHER_REGISTRY
         return _SOURCE_KINDS[kind]
     state.note(
         "python.poetry_lock.unknown_source",
         f"package {preview(name)!r} has a source type DVA does not recognise",
     )
     return SourceKind.UNKNOWN
+
+
+def _package_markers(value: object) -> str | None:
+    """Lock-version 2.1's per-package conditions: one marker, or one per group.
+
+    Per-group markers are combined with ``or``, which is when the package is
+    installed for at least one group. The result is still a valid PEP 508
+    marker expression.
+    """
+    if isinstance(value, str):
+        return value.strip() or None
+    if isinstance(value, dict):
+        parts = list(dict.fromkeys(m.strip() for m in value.values() if isinstance(m, str)))
+        parts = [part for part in parts if part]
+        if len(parts) == 1:
+            return parts[0]
+        if parts:
+            return " or ".join(f"({part})" for part in parts)
+    return None
 
 
 def _groups(value: object) -> tuple[str, ...]:

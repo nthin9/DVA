@@ -159,3 +159,15 @@ def test_wrong_table_types() -> None:
     result = parse(text)
     assert result.status is ParseStatus.PARTIAL
     assert "python.uv_lock.invalid_field" in codes(result)
+
+
+def test_packages_from_another_index_are_marked() -> None:
+    text = (
+        PROJECT.replace('[{ name = "lib" }]', '[{ name = "lib" }, { name = "corp" }]')
+        + package("lib", "1.0", REGISTRY)
+        + package("corp", "2.0", '{ registry = "https://pkgs.corp.example/simple" }')
+    )
+    packages = {p.identity.name: p for p in parse(text).packages}
+    assert packages["lib"].source is SourceKind.REGISTRY
+    assert packages["corp"].source is SourceKind.OTHER_REGISTRY
+    assert packages["corp"].identity.purl is None

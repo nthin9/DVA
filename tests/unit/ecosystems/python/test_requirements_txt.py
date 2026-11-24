@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from dva.contracts.ecosystem import AdapterResult, ParseContext
+from dva.domain.dependency import SourceKind
 from dva.domain.manifest import ParseStatus
 from dva.ecosystems.python.adapter import REQUIREMENTS_TXT, PythonAdapter
 from dva.ecosystems.python.requirements_txt import MAX_INCLUDE_DEPTH
@@ -104,11 +105,43 @@ def test_unknown_option_is_a_warning() -> None:
     assert "python.requirements.unknown_option" in codes(result)
 
 
-def test_constraints_files_are_noted_not_read() -> None:
-    result, reader = parse("-c constraints.txt\npkg\n", {"constraints.txt": "pkg==1\n"})
+def test_constraints_files_pin_ranged_requirements() -> None:
+    files = {
+        "constraints.txt": "pkg==1.4\nother==2\nranged>=1\n-r more.txt\n",
+        "more.txt": "late==3\n",
+    }
+    result, reader = parse("-c constraints.txt\npkg>=1\npinned==2.0\nlate\nnot-pinned\n", files)
     assert result.status is ParseStatus.PARSED
-    assert reader.requested == []
+    assert reader.requested == ["constraints.txt", "more.txt"]
+    # Constraints add no requirements of their own.
+    assert names(result) == ["pkg", "pinned", "late", "not-pinned"]
+    pins = {r.identity.name: r.constrained_to for r in result.requirements}
+    assert pins == {"pkg": "1.4", "pinned": None, "late": "3", "not-pinned": None}
     assert "python.requirements.constraints_file" in codes(result)
+
+
+def test_a_constraint_the_requirement_does_not_allow_is_reported() -> None:
+    result, _ = parse("-c c.txt\npkg<1\n", {"c.txt": "pkg==2\n"})
+    assert result.requirements[0].constrained_to is None
+    assert result.status is ParseStatus.PARTIAL
+    assert "python.requirements.constraint_conflict" in codes(result)
+
+
+def test_two_different_pins_for_one_package_are_not_used() -> None:
+    result, _ = parse("-c a.txt\n-c b.txt\npkg\n", {"a.txt": "pkg==1\n", "b.txt": "pkg==2\n"})
+    assert result.requirements[0].constrained_to is None
+    assert "python.requirements.constraint_conflict" in codes(result)
+
+
+def test_a_private_index_marks_requirements_as_another_registry() -> None:
+    result, _ = parse("--index-url https://user:pw@pkgs.example.com/simple\npkg==1\n")
+    (requirement,) = result.requirements
+    assert requirement.source is SourceKind.OTHER_REGISTRY
+    assert requirement.identity.purl is None
+    assert "python.requirements.other_index" in codes(result)
+    assert "pw" not in " ".join(d.message for d in result.diagnostics)
+    public, _ = parse("-i https://pypi.org/simple\npkg==1\n")
+    assert public.requirements[0].source is SourceKind.REGISTRY
 
 
 def test_includes_are_followed_relative_to_the_including_file() -> None:
@@ -116,8 +149,9 @@ def test_includes_are_followed_relative_to_the_including_file() -> None:
     result, reader = parse("-r base.txt\n-r extra/more.txt\npkg\n", files, "reqs/requirements.txt")
     assert reader.requested == ["reqs/base.txt", "reqs/extra/more.txt"]
     assert names(result) == ["django", "pkg"]
-    assert result.requirements[0].line is None
-    assert result.requirements[1].line == 3
+    # An included requirement keeps the file and line it is written in.
+    assert (result.requirements[0].origin, result.requirements[0].line) == ("reqs/base.txt", 1)
+    assert (result.requirements[1].origin, result.requirements[1].line) == (None, 3)
     assert "python.requirements.include_repeated" in codes(result)
     included = [d.path for d in result.diagnostics if d.code == "python.requirements.included"]
     assert included == ["reqs/base.txt", "reqs/extra/more.txt"]

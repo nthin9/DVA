@@ -108,7 +108,8 @@ def test_sources_are_mapped() -> None:
     assert sources == {
         "g": (SourceKind.GIT, None),
         "d": (SourceKind.PATH, None),
-        "p": (SourceKind.REGISTRY, "pkg:pypi/p"),
+        # A private index: a real registry, but not PyPI, so no pkg:pypi URL.
+        "p": (SourceKind.OTHER_REGISTRY, None),
         "w": (SourceKind.UNKNOWN, None),
     }
     assert "python.poetry_lock.unknown_source" in codes(result)
@@ -120,3 +121,22 @@ def test_malformed_packages_are_skipped() -> None:
     result = parse(text + METADATA)
     assert result.status is ParseStatus.PARTIAL
     assert [p.node_id for p in result.packages] == ["ok@1.0"]
+
+
+def test_lock_version_2_1_keeps_per_package_markers() -> None:
+    text = (
+        package("a", "1.0", 'markers = "python_version < \\"3.13\\""')
+        + package(
+            "b",
+            "1.0",
+            'markers = { main = "sys_platform == \\"win32\\"", dev = "os_name == \\"nt\\"" }',
+        )
+        + package("c", "1.0")
+    )
+    result = parse(text + METADATA.replace('"2.0"', '"2.1"'))
+    markers = {p.identity.name: p.markers for p in result.packages}
+    assert markers == {
+        "a": 'python_version < "3.13"',
+        "b": '(sys_platform == "win32") or (os_name == "nt")',
+        "c": None,
+    }

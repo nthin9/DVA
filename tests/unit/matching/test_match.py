@@ -173,3 +173,16 @@ def test_ecosystem_ranges_use_the_packages_own_rules() -> None:
     )
     assert match(record, "pypi", "pkg", "1.0.0").status is MatchStatus.AFFECTED
     assert match(record, "pypi", "pkg", "1.0.post1").status is MatchStatus.NOT_AFFECTED
+
+
+def test_package_level_severity_comes_with_the_match() -> None:
+    from dva.domain.advisory import Severity
+
+    score = Severity("CVSS_V3", "CVSS:3.1/AV:N")
+    hit = AffectedPackage("npm", "pkg", versions=("1.0.0",), severities=(score,))
+    other = AffectedPackage(
+        "npm", "pkg", versions=("2.0.0",), severities=(Severity("CVSS_V3", "other"),)
+    )
+    result = match(Advisory("TEST-1", STAMP, affected=(hit, other)), "npm", "pkg", "1.0.0")
+    assert result.status is MatchStatus.AFFECTED
+    assert result.severities == (score,)

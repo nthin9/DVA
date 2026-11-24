@@ -23,7 +23,7 @@ from dva.domain.dependency import ResolvedPackage, SourceKind
 from dva.domain.diagnostics import Diagnostic, DiagnosticLevel
 from dva.domain.manifest import ParseStatus
 from dva.ecosystems.python.lockgraph import LockGraph
-from dva.ecosystems.python.names import canonical, identity
+from dva.ecosystems.python.names import canonical, identity, is_public_index
 from dva.ecosystems.python.tomlfile import failure, load_toml
 from dva.ecosystems.text import preview
 
@@ -176,7 +176,13 @@ def _source(value: object) -> tuple[SourceKind, tuple[tuple[str, str], ...]]:
         return SourceKind.UNKNOWN, ()
     key = tuple(sorted((str(k), str(v)) for k, v in value.items()))
     kinds = [_SOURCE_KINDS[k] for k in value if k in _SOURCE_KINDS]
-    return (kinds[0] if len(kinds) == 1 else SourceKind.UNKNOWN), key
+    kind = kinds[0] if len(kinds) == 1 else SourceKind.UNKNOWN
+    registry = value.get("registry")
+    if kind is SourceKind.REGISTRY and not (
+        isinstance(registry, str) and is_public_index(registry)
+    ):
+        kind = SourceKind.OTHER_REGISTRY
+    return kind, key
 
 
 def _is_project_itself(entry: _Entry) -> bool:

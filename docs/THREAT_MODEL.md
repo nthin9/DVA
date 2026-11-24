@@ -50,7 +50,11 @@ name, for example `PyPI` and `requests`. It doesn't send the version, source
 code, dependency files, file paths, or anything else from the project.
 Packages installed from git, a URL or a local path aren't looked up at all,
 so the names of private internal packages don't leave the machine that way.
-A package from a private registry is still looked up by name.
+Packages from a registry other than the public one (a company registry or a
+mirror) aren't looked up either, unless you pass
+`--include-private-registries`. DVA can only tell where a package comes from
+when the dependency files record it; see
+[Supported formats](SUPPORTED_FORMATS.md#packages-from-other-registries).
 
 Requests go only to `https://api.osv.dev`, with a timeout, a cap on the
 response size, and no redirects followed. The User-Agent names DVA and its

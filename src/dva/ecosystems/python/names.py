@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 from packaging.utils import canonicalize_name
 
@@ -14,6 +14,19 @@ ECOSYSTEM = "pypi"
 def canonical(name: str) -> str:
     """The normalized form of a project name (lowercase, runs of ``-_.`` become ``-``)."""
     return str(canonicalize_name(name))
+
+
+#: Hosts of the public Python Package Index. Any other index may be private.
+PUBLIC_INDEX_HOSTS = frozenset({"pypi.org", "pypi.python.org", "files.pythonhosted.org"})
+
+
+def is_public_index(url: str) -> bool:
+    """Whether a package index URL points at PyPI itself."""
+    try:
+        host = urlsplit(url.strip()).hostname
+    except ValueError:
+        return False
+    return (host or "").lower() in PUBLIC_INDEX_HOSTS
 
 
 def identity(name: str, *, from_registry: bool = True) -> PackageIdentity:

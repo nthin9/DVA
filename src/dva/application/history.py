@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from dva.application.analyze import analyze_project
+from dva.application.vulnerabilities import requirement_version
 from dva.contracts.history import HistoryError, HistoryStore
 from dva.domain.dependency import SourceKind
 from dva.domain.history import (
@@ -114,9 +115,10 @@ def digest_scan(scan: ScanResult) -> ScanDigest:
 
 def _versions(scan: ScanResult) -> Iterable[tuple[PackageRef, str | None]]:
     """Package versions in a scan that wasn't checked, chosen the way the
-    vulnerability check chooses them, so checked and unchecked scans compare
-    cleanly: registry releases with an exact version keep it, anything else
-    (git, URL, path, workspace, or a range) counts as having no exact version."""
+    vulnerability check chooses them by default, so checked and unchecked
+    scans compare cleanly: public registry releases with an exact version keep
+    it; anything else (git, URL, path, workspace, another registry, or a
+    range) counts as having no exact version."""
     for manifest in scan.manifests:
         for package in manifest.packages:
             known = (
@@ -125,15 +127,8 @@ def _versions(scan: ScanResult) -> Iterable[tuple[PackageRef, str | None]]:
             )
             yield _ref(package.identity), package.version if known else None
         for requirement in manifest.requirements:
-            scheme = scheme_for(requirement.identity.ecosystem)
-            exact = None
-            if (
-                scheme is not None
-                and requirement.constraint is not None
-                and requirement.source is SourceKind.REGISTRY
-            ):
-                exact = scheme.exact_version(requirement.constraint)
-            yield _ref(requirement.identity), exact
+            public = requirement.source is SourceKind.REGISTRY
+            yield _ref(requirement.identity), requirement_version(requirement) if public else None
 
 
 @dataclass(frozen=True, slots=True)

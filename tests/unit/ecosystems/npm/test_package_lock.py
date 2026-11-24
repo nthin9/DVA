@@ -213,3 +213,23 @@ def test_shrinkwrap_uses_the_same_parser() -> None:
     text = lock({"": {"dependencies": {"a": "1"}}, "node_modules/a": entry("a", "1.0.0")})
     context = ParseContext("npm-shrinkwrap.json", text.encode(), SHRINKWRAP, MemoryReader())
     assert NpmAdapter().parse(context).status is ParseStatus.PARSED
+
+
+def test_tarballs_from_another_registry_are_marked() -> None:
+    text = lock(
+        {
+            "": {},
+            "node_modules/a": {
+                "version": "1.0.0",
+                "resolved": "https://npm.corp.example/a/-/a-1.0.0.tgz",
+            },
+            "node_modules/b": {
+                "version": "1.0.0",
+                "resolved": "https://registry.yarnpkg.com/b/-/b-1.0.0.tgz",
+            },
+        }
+    )
+    packages = {p.node_id: p for p in parse(text).packages}
+    assert packages["node_modules/a"].source is SourceKind.OTHER_REGISTRY
+    assert packages["node_modules/a"].identity.purl is None
+    assert packages["node_modules/b"].source is SourceKind.REGISTRY

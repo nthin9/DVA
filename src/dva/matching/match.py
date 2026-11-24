@@ -24,7 +24,13 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
-from dva.domain.advisory import Advisory, AffectedPackage, AffectedRange, EventKind
+from dva.domain.advisory import (
+    Advisory,
+    AffectedPackage,
+    AffectedRange,
+    EventKind,
+    Severity,
+)
 from dva.matching.schemes import SEMVER, UnparsableVersionError, VersionScheme, scheme_for
 
 _EVALUATED_TYPES = {"ECOSYSTEM", "SEMVER"}
@@ -51,6 +57,8 @@ class MatchResult:
     #: ``last_affected`` bounds that cover the checked version, when no fix is given.
     last_affected: tuple[str, ...] = ()
     reasons: tuple[str, ...] = field(default=())
+    #: Package-specific scores from the affected entries that matched.
+    severities: tuple[Severity, ...] = ()
 
 
 def match(advisory: Advisory, ecosystem: str, name: str, version: str) -> MatchResult:
@@ -71,11 +79,15 @@ def match(advisory: Advisory, ecosystem: str, name: str, version: str) -> MatchR
     results = [_match_entry(entry, scheme, version) for entry in entries]
     affected = [r for r in results if r.status is MatchStatus.AFFECTED]
     if affected:
+        matched = [
+            e for e, r in zip(entries, results, strict=True) if r.status is MatchStatus.AFFECTED
+        ]
         return MatchResult(
             MatchStatus.AFFECTED,
             matched_by=_union(r.matched_by for r in affected),
             fixed_versions=_union(r.fixed_versions for r in affected),
             last_affected=_union(r.last_affected for r in affected),
+            severities=tuple(dict.fromkeys(s for e in matched for s in e.severities)),
         )
     unknown = [r for r in results if r.status is MatchStatus.UNKNOWN]
     if unknown:

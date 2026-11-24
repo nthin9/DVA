@@ -72,6 +72,7 @@
             "namespace": null,
             "purl": "pkg:example/alpha"
           },
+          "markers": null,
           "node_id": "alpha@1.0",
           "source": "unknown",
           "version": "1.0"
@@ -84,6 +85,7 @@
             "namespace": null,
             "purl": null
           },
+          "markers": null,
           "node_id": "bêta@2.0",
           "source": "registry",
           "version": "2.0"
@@ -93,6 +95,7 @@
       "requirements": [
         {
           "alias": null,
+          "constrained_to": null,
           "constraint": "==1.0",
           "extras": [],
           "groups": [
@@ -107,10 +110,12 @@
           },
           "line": 1,
           "markers": null,
+          "origin": null,
           "source": "unknown"
         },
         {
           "alias": "b",
+          "constrained_to": null,
           "constraint": "==2.0",
           "extras": [
             "eta",
@@ -125,6 +130,7 @@
           },
           "line": 2,
           "markers": null,
+          "origin": null,
           "source": "registry"
         }
       ],

@@ -189,9 +189,15 @@ for a package, so any version of it can be checked offline later.
 The versions checked are the exact ones a lockfile records, plus requirements
 pinned to a single version (`requests==2.31.0`). A requirement that only gives
 a range (`requests>=2`) can't be checked honestly and is listed as not
-checked, unless a lockfile in the same project pins that package anyway.
-Packages from git, URLs or local paths aren't looked up and are listed with
-the reason.
+checked, unless a lockfile in the same project pins that package anyway, or
+a pip constraints file pins it to one version. Packages from git, URLs or
+local paths aren't looked up and are listed with the reason. Neither are
+packages from a registry other than the ecosystem's public one, unless the
+user allows it, because their names may be private.
+
+When an advisory gives a severity score for one affected package rather than
+for the whole advisory, that score is kept on the finding for that package
+and shown as applying to it.
 
 Every package gets one of five outcomes: affected, no matching advisory,
 unknown (advisories exist but DVA couldn't decide for this version), not
@@ -203,7 +209,8 @@ If OSV can't be reached, or DVA is told to work offline, it uses the cached
 data and records how old it is. If an updated record can't be downloaded, the
 older cached copy is used and the result says so. A failed lookup is never
 reported as "no vulnerabilities": a package with no cached data at all is
-marked as a failed lookup.
+marked as a failed lookup. `dva cache info` shows how much is cached and how
+old it is, and `dva cache clear` deletes it; saved scans are kept.
 
 API reference: <https://github.com/google/osv.dev/blob/master/docs/api/post-v1-querybatch.md>
 

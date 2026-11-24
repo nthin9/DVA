@@ -45,7 +45,13 @@ dva scan C:\code\myapp        # scan another folder
 dva scan --html report.html --json report.json
 dva scan --offline             # use only advisory data cached by earlier scans
 dva scan --no-vulnerabilities  # list dependencies without checking advisories
+dva cache info                 # how much advisory data is cached, and how old
+dva cache clear --yes          # delete the cached advisory data
 ```
+
+Packages from a private or alternative registry aren't looked up by default,
+because their names may be private; add `--include-private-registries` to
+check them too.
 
 The summary lists every affected package with the advisory's ID, aliases
 (such as the CVE), severity as published, and the fixed version when the
@@ -104,7 +110,8 @@ macOS should work too, but Windows is the main target).
   no `pip install` or `npm install`.
 - Upload your code. The only thing sent to OSV is the ecosystem and name of
   each package being looked up. Not even the version is sent: DVA fetches the
-  advisories for a package and checks the version on your machine.
+  advisories for a package and checks the version on your machine. Packages
+  from private registries aren't looked up unless you ask.
 - Collect telemetry.
 - Change your dependency files or upgrade packages for you.
 - Tell you a project is "safe". A scan reports what it found, what it couldn't

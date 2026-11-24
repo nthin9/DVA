@@ -19,13 +19,14 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import urlsplit
 
 from dva.contracts.ecosystem import AdapterResult, ParseContext
 from dva.domain.dependency import DependencyEdge, ResolvedPackage, SourceKind
 from dva.domain.diagnostics import Diagnostic, DiagnosticLevel
 from dva.domain.manifest import ParseStatus
 from dva.ecosystems.npm.jsonfile import failure, load_json_object
-from dva.ecosystems.npm.names import identity, is_valid_name
+from dva.ecosystems.npm.names import PUBLIC_REGISTRY_HOSTS, identity, is_valid_name
 from dva.ecosystems.text import preview, redact_url
 
 SUPPORTED_VERSIONS = (2, 3)
@@ -191,7 +192,10 @@ def _source(table: Mapping[str, Any]) -> SourceKind:
         return SourceKind.PATH
     if lowered.startswith(("http://", "https://")):
         # Registry tarballs live under "<registry>/<name>/-/<file>.tgz".
-        return SourceKind.REGISTRY if "/-/" in resolved else SourceKind.URL
+        if "/-/" not in resolved:
+            return SourceKind.URL
+        host = (urlsplit(resolved).hostname or "").lower()
+        return SourceKind.REGISTRY if host in PUBLIC_REGISTRY_HOSTS else SourceKind.OTHER_REGISTRY
     return SourceKind.UNKNOWN
 
 

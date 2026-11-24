@@ -27,7 +27,7 @@ from dva.contracts.intelligence import (
     ProviderError,
 )
 from dva.domain.advisory import Advisory
-from dva.domain.dependency import SourceKind
+from dva.domain.dependency import DeclaredRequirement, SourceKind
 from dva.domain.diagnostics import Diagnostic, DiagnosticLevel
 from dva.domain.identity import PackageIdentity
 from dva.domain.scan import ScanResult
@@ -86,12 +86,18 @@ def check_vulnerabilities(
     cache: AdvisoryCache,
     *,
     offline: bool = False,
+    other_registries: bool = False,
     clock: Clock = _utc_now,
 ) -> ScanResult:
-    """Return ``scan`` with a :class:`VulnerabilityReport` attached."""
+    """Return ``scan`` with a :class:`VulnerabilityReport` attached.
+
+    Packages from a registry other than the ecosystem's public one are only
+    looked up when ``other_registries`` is true, because their names may be
+    private. Otherwise they are listed as not checked, with that reason.
+    """
     checked_at = clock()
     diagnostics: list[Diagnostic] = []
-    targets, unchecked = _collect(scan, source)
+    targets, unchecked = _collect(scan, source, other_registries)
 
     keys = sorted({target.key for target in targets.values()})
     lookups = _lookup(keys, source, cache, offline, checked_at, diagnostics)
@@ -139,6 +145,7 @@ def _source_name(kind: SourceKind) -> str:
         SourceKind.URL: "a URL",
         SourceKind.PATH: "a local path",
         SourceKind.WORKSPACE: "the project's own workspace",
+        SourceKind.OTHER_REGISTRY: "a registry other than the public one",
         SourceKind.UNKNOWN: "an unknown source",
     }.get(kind, "somewhere other than a registry")
 
@@ -147,8 +154,31 @@ def _full_name(identity: PackageIdentity) -> str:
     return f"{identity.namespace}/{identity.name}" if identity.namespace else identity.name
 
 
+#: Why a package from a private or alternative registry wasn't looked up.
+OTHER_REGISTRY_REASON = (
+    "comes from a registry other than the public one, so its name may be private; "
+    "not looked up unless allowed"
+)
+
+#: Sources whose versions are registry releases that advisories can describe.
+_RELEASE_SOURCES = (SourceKind.REGISTRY, SourceKind.OTHER_REGISTRY)
+
+
+def requirement_version(requirement: DeclaredRequirement) -> str | None:
+    """The one version a declaration resolves to without a lockfile, if any:
+    an exact pin in the declaration itself, or one from a constraints file."""
+    scheme = scheme_for(requirement.identity.ecosystem)
+    if scheme is None or requirement.source not in _RELEASE_SOURCES:
+        return None
+    if requirement.constraint is not None:
+        exact = scheme.exact_version(requirement.constraint)
+        if exact is not None:
+            return exact
+    return requirement.constrained_to
+
+
 def _collect(
-    scan: ScanResult, source: AdvisorySource
+    scan: ScanResult, source: AdvisorySource, other_registries: bool
 ) -> tuple[dict[tuple[PackageKey, str], _Target], dict[tuple[str, str], _Unchecked]]:
     targets: dict[tuple[PackageKey, str], _Target] = {}
     unchecked: dict[tuple[str, str], _Unchecked] = {}
@@ -171,7 +201,9 @@ def _collect(
             key = PackageKey(package.identity.ecosystem, _full_name(package.identity))
             if not source.supports(key.ecosystem) or scheme_for(key.ecosystem) is None:
                 skip(package.identity, key, "no vulnerability data for this ecosystem", where)
-            elif package.source is not SourceKind.REGISTRY:
+            elif package.source is SourceKind.OTHER_REGISTRY and not other_registries:
+                skip(package.identity, None, OTHER_REGISTRY_REASON, where)
+            elif package.source not in _RELEASE_SOURCES:
                 skip(
                     package.identity,
                     None,
@@ -183,21 +215,22 @@ def _collect(
 
         for requirement in manifest.requirements:
             identity = requirement.identity
-            where = Location(manifest.path, line=requirement.line)
+            where = Location(requirement.origin or manifest.path, line=requirement.line)
             key = PackageKey(identity.ecosystem, _full_name(identity))
             scheme = scheme_for(key.ecosystem)
+            version = requirement_version(requirement)
             if not source.supports(key.ecosystem) or scheme is None:
                 skip(identity, key, "no vulnerability data for this ecosystem", where)
-            elif requirement.source is not SourceKind.REGISTRY:
+            elif requirement.source is SourceKind.OTHER_REGISTRY and not other_registries:
+                skip(identity, None, OTHER_REGISTRY_REASON, where)
+            elif requirement.source not in _RELEASE_SOURCES:
                 skip(identity, None, f"comes from {_source_name(requirement.source)}", where)
+            elif version is not None:
+                target(identity, key, version, where)
             elif requirement.constraint is None:
                 skip(identity, key, "declares no version", where)
             else:
-                version = scheme.exact_version(requirement.constraint)
-                if version is None:
-                    skip(identity, key, "declares a version range, not one exact version", where)
-                else:
-                    target(identity, key, version, where)
+                skip(identity, key, "declares a version range, not one exact version", where)
     return targets, unchecked
 
 
@@ -326,7 +359,13 @@ def _check(
         result = match(advisories[stamp.id], target.key.ecosystem, target.key.name, target.version)
         if result.status is MatchStatus.AFFECTED:
             findings.append(
-                Finding(stamp.id, result.matched_by, result.fixed_versions, result.last_affected)
+                Finding(
+                    stamp.id,
+                    result.matched_by,
+                    result.fixed_versions,
+                    result.last_affected,
+                    result.severities,
+                )
             )
         elif result.status is MatchStatus.UNKNOWN:
             reasons.extend(f"{stamp.id}: {reason}" for reason in result.reasons)

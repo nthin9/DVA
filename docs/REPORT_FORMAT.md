@@ -46,18 +46,27 @@ package with an exact version was checked without problems.
 A **requirement** has `identity`, `constraint` (the version range as written,
 or `null`), `markers` (platform conditions as written), `extras`, `groups`
 (such as `dev`, `optional:<extra>`, `group:<name>`), `alias` (the name it is
-installed under, if different), `source` (`registry`, `git`, `url`, `path`,
-`workspace` or `unknown`) and `line` (when known).
+installed under, if different), `source` (`registry`, `other_registry`,
+`git`, `url`, `path`, `workspace` or `unknown`), `line` (when known),
+`origin` (the file the requirement is written in, when it was pulled in from
+another file such as one included with `-r`; `line` then refers to that file,
+otherwise `null`) and `constrained_to` (an exact version a constraints file
+pins it to, or `null`).
+
+`registry` means the ecosystem's public registry (PyPI, the npm registry);
+`other_registry` means any other package index, such as a private one.
 
 A **package** has `node_id` (unique within its file), `identity`, `version`
-(exactly as recorded), `groups` and `source`.
+(exactly as recorded), `groups`, `source` and `markers` (conditions for
+installing the package at all, when the lockfile records them per package,
+otherwise `null`).
 
 An **edge** has `parent_id` (`null` when the project depends on the package
 directly), `child_id`, `direct`, `constraint`, `markers` and `groups`.
 
 An **identity** has `ecosystem`, `namespace` (an npm scope such as `@babel`,
 or `null`), `name` (normalized the way the ecosystem does it) and `purl` (a
-Package URL, only for packages from a registry).
+Package URL, only for packages from the public registry).
 
 A **diagnostic** has `code` (a stable identifier such as
 `python.requirements.editable`), `level` (`info`, `warning` or `error`),
@@ -89,15 +98,19 @@ known), `status`, `locations` (each a `path` plus a `node_id` or `line`),
 - `lookup_failed`: the lookup failed and nothing usable was cached.
 
 A **finding** has `advisory_id`, `matched_by` (`range`, `versions` or both),
-`fixed_versions` and `last_affected`. Both of the last two are copied from
-the advisory and are empty when the advisory doesn't give them; DVA never
-guesses a fix.
+`fixed_versions`, `last_affected` and `severities`. The fixed and last
+affected versions are copied from the advisory and are empty when the
+advisory doesn't give them; DVA never guesses a fix. `severities` lists the
+scores the advisory gives for this particular package (OSV allows a score per
+affected package instead of one for the whole advisory), in the same shape as
+an advisory's `severities`. It is usually empty.
 
 An **advisory** has `id`, `aliases` (CVE identifiers among them, when there
 are any), `related`, `summary`, `details`, `severities` (each with `type`
 such as `CVSS_V3`, `score` as published, and `source`), `database_severity`
 (the database's own label, such as `HIGH`), `references` (only `http(s)`
-links), `affected`, `published`, `modified`, `withdrawn` and
+links), `affected` (each package with its ranges, versions and any
+`severities` given for that package alone), `published`, `modified`, `withdrawn` and
 `schema_version`. DVA doesn't compute or change severity scores.
 
 ## Overview (`overview`)
