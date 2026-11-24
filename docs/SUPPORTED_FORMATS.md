@@ -56,13 +56,25 @@ credentials.
   `group:dev`.
 - A requirement on the project itself, such as `myproject[socks]`, is marked
   as a workspace dependency rather than a package from PyPI.
+- Poetry's `[tool.poetry.dependencies]`, `[tool.poetry.group.<name>.dependencies]`
+  (labelled `group:<name>`) and the older `[tool.poetry.dev-dependencies]`
+  (labelled `group:dev`). Poetry's own version syntax is translated to the
+  standard form: `^1.2.3` becomes `>=1.2.3,<2.0.0`, `~1.2.3` becomes
+  `>=1.2.3,<1.3.0`, and a bare `1.2.3` means exactly that version. A `python`
+  condition becomes a `python_version` marker. Optional dependencies are
+  labelled with the extras that install them. Dependencies from git, a path
+  or a URL are marked as such, with credentials removed. A constraint with
+  alternatives (`1.0 || 2.0`) has no standard form, so it is kept without a
+  version and reported. With Poetry 2, `[tool.poetry.dependencies]` only adds
+  details to packages already listed in `[project]`, so those aren't counted
+  twice.
 
 Reported as not analyzed:
 
 - dependencies listed in `dynamic`, which only the build backend can work
   out, and DVA doesn't run it;
-- tool-specific tables: Poetry's `[tool.poetry]` dependencies and groups,
-  PDM's `dev-dependencies`, and uv's older `dev-dependencies`.
+- other tool-specific tables: PDM's `dev-dependencies`, and uv's older
+  `dev-dependencies`.
 
 A `pyproject.toml` that only configures tools, with no dependency tables, is
 read successfully and simply has no requirements.
@@ -193,11 +205,14 @@ mirror, with the source `other_registry`. It recognises them in:
 - `package-lock.json` and `npm-shrinkwrap.json`: a tarball from another host;
 - `uv.lock`: a `registry` source that isn't PyPI;
 - `poetry.lock`: a `legacy` source whose URL isn't PyPI;
+- `pyproject.toml`: a Poetry dependency that names a `[[tool.poetry.source]]`
+  that isn't PyPI, and every package when the project's primary Poetry source
+  isn't PyPI (which makes Poetry stop using PyPI);
 - requirements files: a `--index-url` that isn't PyPI.
 
 The names of such packages may be private, so by default they are not looked
 up in OSV and are listed as not checked, with that reason.
 `--include-private-registries` looks them up as well. Only the package's name
 and ecosystem are sent, as for any other package. Not detected yet: indexes
-configured outside these files (in `pip.conf`, `.npmrc`, or `pyproject.toml`
-tool settings), and `--extra-index-url`, which mixes PyPI with another index.
+configured outside these files (in `pip.conf`, `.npmrc`, or the PDM and uv
+settings in `pyproject.toml`), and `--extra-index-url`, which mixes PyPI with another index.

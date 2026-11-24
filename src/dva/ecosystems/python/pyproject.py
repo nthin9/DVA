@@ -7,7 +7,10 @@ Reads the standard tables only:
 * ``[dependency-groups]`` (PEP 735), labelled ``group:<name>``, following
   ``include-group`` entries so a requirement carries every group it belongs to.
 
-Tool-specific tables (Poetry, PDM, uv's older ``dev-dependencies``) are
+* Poetry's ``[tool.poetry]`` dependency tables, translated to the standard
+  form by :mod:`dva.ecosystems.python.poetry_pyproject`.
+
+Other tool-specific tables (PDM, uv's older ``dev-dependencies``) are
 reported as not analyzed. Dependencies a build backend computes at build time
 (``dynamic``) cannot be known without running project code, so they are
 reported rather than guessed.
@@ -24,14 +27,12 @@ from dva.domain.dependency import DeclaredRequirement
 from dva.domain.diagnostics import Diagnostic, DiagnosticLevel
 from dva.domain.manifest import ParseStatus
 from dva.ecosystems.python.names import canonical
+from dva.ecosystems.python.poetry_pyproject import mark_private_sources, read_poetry
 from dva.ecosystems.python.requirement import RequirementSyntaxError, parse_requirement
 from dva.ecosystems.python.tomlfile import load_toml
 from dva.ecosystems.text import preview
 
 _TOOL_TABLES = {
-    ("poetry", "dependencies"): "Poetry dependencies ([tool.poetry.dependencies])",
-    ("poetry", "group"): "Poetry dependency groups ([tool.poetry.group])",
-    ("poetry", "dev-dependencies"): "Poetry dev dependencies ([tool.poetry.dev-dependencies])",
     ("pdm", "dev-dependencies"): "PDM dev dependencies ([tool.pdm.dev-dependencies])",
     ("uv", "dev-dependencies"): "uv dev dependencies ([tool.uv.dev-dependencies])",
 }
@@ -75,7 +76,17 @@ def parse_pyproject(context: ParseContext) -> AdapterResult:
         _read_project(state, project)
     if "dependency-groups" in document:
         _read_dependency_groups(state, document["dependency-groups"])
-    _report_tool_tables(state, document.get("tool"))
+    tool = document.get("tool")
+    poetry = tool.get("poetry") if isinstance(tool, dict) else None
+    if isinstance(poetry, dict):
+        declared = frozenset(canonical(r.identity.name) for r in state.requirements)
+        name = poetry.get("name")
+        state.project_name = state.project_name or (name if isinstance(name, str) else None)
+        state.requirements += read_poetry(
+            poetry, skip=declared, project_name=state.project_name, warn=state.warn
+        )
+        state.requirements = mark_private_sources(state.requirements, poetry)
+    _report_tool_tables(state, tool)
 
     return AdapterResult(
         status=ParseStatus.PARTIAL if state.incomplete else ParseStatus.PARSED,
