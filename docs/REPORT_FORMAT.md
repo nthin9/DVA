@@ -22,6 +22,7 @@ use `/`; absolute paths never appear.
 | `vulnerability_status` | `not_queried`, `complete`, `partial` or `failed` (see below) |
 | `manifests` | One entry per dependency file found |
 | `diagnostics` | Problems found while looking for files (limits reached, skipped entries) |
+| `excluded` | Paths and patterns the scan was asked to skip (`--exclude`), so readers know the coverage was limited on purpose; empty when nothing was excluded |
 | `vulnerabilities` | The vulnerability check, or `null` if it wasn't run |
 | `overview` | Counts that summarize everything above |
 

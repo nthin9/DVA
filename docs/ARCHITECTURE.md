@@ -67,6 +67,8 @@ format to show that any adapter works with the engine.
    and `.git` are skipped, and so are symlinks and environments of installed
    packages: any folder with a `pyvenv.cfg` (a Python virtual environment,
    whatever it is called) or a `conda-meta` folder (a conda environment).
+   Paths the user excluded with `--exclude` are skipped too, and the result
+   lists them, so a report shows its coverage was limited on purpose.
 3. Hand each file to the adapter that knows its format.
 4. The adapter parses the file and returns packages, versions and dependency
    relationships, plus notes about anything it couldn't handle.
@@ -184,7 +186,8 @@ OSV is the first vulnerability source. DVA asks its batch API which advisories
 exist for each package, by ecosystem and name only, without a version. The
 answer lists advisory IDs with the time each record was last changed. DVA
 then downloads only the records that are new or have changed since it cached
-them, and checks each installed version against them locally. Asking by name
+them, up to eight at a time, and checks each installed version against them
+locally. Asking by name
 sends OSV less about the project, and it means the cache holds every advisory
 for a package, so any version of it can be checked offline later.
 

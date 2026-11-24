@@ -18,6 +18,8 @@ dva history myapp --prune 20 --yes       # delete all but the newest 20 scans
 dva compare myapp                        # the latest scan against the one before
 dva compare myapp 3                      # scan 3 against the latest
 dva compare myapp 3 5                    # scan 3 against scan 5
+dva project add C:\code\web --exclude tests/fixtures   # skip a folder on every rescan
+dva project exclude myapp vendor         # add to what rescans skip (--clear to reset)
 dva project remove myapp --yes           # unregister it and delete its saved scans
 dva search lodash                        # which projects use a package, and which version
 ```
@@ -25,7 +27,9 @@ dva search lodash                        # which projects use a package, and whi
 `rescan` takes the same options as `scan` (`--offline`, `--no-vulnerabilities`,
 `--json`, `--html`, `--quiet`, `--data-dir`) and reads the project in exactly
 the same way: nothing in it is run, installed or changed. Project names are
-matched without regard to case.
+matched without regard to case. Folders and files a project excludes are
+skipped on every rescan, together with any `--exclude` given on the command
+line, and each saved scan records what was excluded.
 
 ## What a comparison shows
 

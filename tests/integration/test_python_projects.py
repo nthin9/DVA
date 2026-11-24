@@ -18,11 +18,13 @@ BASIC = FIXTURES / "basic_project"
 POETRY = FIXTURES / "poetry_project"
 
 
-def scan(tmp_path: Path, fixture: Path = BASIC) -> dict[str, ManifestAnalysis]:
+def scan(
+    tmp_path: Path, fixture: Path = BASIC, completion: CompletionState = CompletionState.PARTIAL
+) -> dict[str, ManifestAnalysis]:
     root = tmp_path / "project"
     shutil.copytree(fixture, root)
     result = analyze_project(root, default_registry())
-    assert result.completion is CompletionState.PARTIAL
+    assert result.completion is completion
     assert not (root / "SETUP_PY_WAS_EXECUTED").exists()
     return {m.path: m for m in result.manifests}
 
@@ -89,8 +91,12 @@ def test_uv_lock_graph(tmp_path: Path) -> None:
 
 
 def test_poetry_lock_graph(tmp_path: Path) -> None:
-    manifests = scan(tmp_path, POETRY)
-    assert manifests["pyproject.toml"].status is ParseStatus.PARTIAL
+    manifests = scan(tmp_path, POETRY, CompletionState.COMPLETE)
+    # The Poetry group table is read now, so the manifest is fully understood.
+    project = manifests["pyproject.toml"]
+    assert project.status is ParseStatus.PARSED
+    pytest_req = [r for r in project.requirements if r.identity.name == "pytest"]
+    assert [(r.constraint, r.groups) for r in pytest_req] == [(">=8.3,<9.0", ("group:dev",))]
     lock = manifests["poetry.lock"]
     assert lock.status is ParseStatus.PARSED
     assert lock.format_version == "2.1"

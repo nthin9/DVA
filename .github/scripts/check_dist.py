@@ -17,6 +17,7 @@ REQUIRED_IN_WHEEL = (
     "dva/cli.py",
     "dva/storage/migrations/001_advisory_cache.sql",
     "dva/storage/migrations/002_projects_and_scans.sql",
+    "dva/storage/migrations/003_project_excludes.sql",
     "dva/reporting/assets/report.html",
     "dva/reporting/assets/report.js",
     "dva/reporting/assets/report.css",

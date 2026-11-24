@@ -56,6 +56,7 @@ dva scan --html report.html --json report.json
 dva scan --json - > report.json  # print the JSON report instead of the summary
 dva scan --offline             # use only advisory data cached by earlier scans
 dva scan --no-vulnerabilities  # list dependencies without checking advisories
+dva scan --exclude tests/fixtures  # skip a folder (repeatable; */examples works too)
 dva cache info                 # how much advisory data is cached, and how old
 dva cache clear --yes          # delete the cached advisory data
 ```

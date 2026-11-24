@@ -7,14 +7,15 @@ snapshot. Earlier snapshots are never modified.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
-from dataclasses import dataclass
+from collections.abc import Callable, Iterable, Sequence
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
 from dva.application.analyze import analyze_project
 from dva.application.vulnerabilities import requirement_version
 from dva.contracts.history import HistoryError, HistoryStore
+from dva.discovery.exclude import ExcludeRules
 from dva.domain.dependency import SourceKind
 from dva.domain.history import (
     DigestEntry,
@@ -60,9 +61,19 @@ def _utc_now() -> datetime:
 
 
 def register_project(
-    store: HistoryStore, root: Path, name: str | None = None, *, clock: Clock = _utc_now
+    store: HistoryStore,
+    root: Path,
+    name: str | None = None,
+    *,
+    excludes: Sequence[str] = (),
+    clock: Clock = _utc_now,
 ) -> Project:
-    """Register the folder ``root``. The name defaults to the folder's name."""
+    """Register the folder ``root``. The name defaults to the folder's name.
+
+    ``excludes`` are paths or patterns every rescan skips. Raises
+    ``ValueError`` for an unusable name or pattern.
+    """
+    patterns = ExcludeRules(excludes).patterns
     try:
         resolved = root.resolve(strict=True)
     except OSError:
@@ -71,7 +82,14 @@ def register_project(
         raise ProjectRootError("that path is not a folder")
     chosen = name if name is not None else resolved.name
     require_project_name(chosen)
-    return store.add_project(chosen, resolved, clock())
+    return store.add_project(chosen, resolved, clock(), patterns)
+
+
+def set_project_excludes(store: HistoryStore, project: Project, excludes: Sequence[str]) -> Project:
+    """Replace the paths and patterns a project's rescans skip."""
+    patterns = ExcludeRules(excludes).patterns
+    store.set_excludes(project.id, patterns)
+    return replace(project, excludes=patterns)
 
 
 def _ref(identity: PackageIdentity) -> PackageRef:
@@ -146,6 +164,7 @@ def rescan_project(
     *,
     render_report: Render,
     check: Check | None = None,
+    extra_excludes: Sequence[str] = (),
 ) -> RescanResult:
     """Scan a registered project again and save the result as a new snapshot.
 
@@ -155,7 +174,7 @@ def rescan_project(
     folder is gone; nothing is saved then.
     """
     previous = store.scans(project.id, limit=1)
-    scan = analyze_project(project.root, registry)
+    scan = analyze_project(project.root, registry, exclude=(*project.excludes, *extra_excludes))
     if check is not None:
         scan = check(scan)
     digest = digest_scan(scan)

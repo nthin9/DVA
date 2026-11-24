@@ -384,3 +384,31 @@ def test_json_dash_prints_only_the_report(
     captured = capsys.readouterr()
     assert json.loads(captured.out)["project_name"] == "app"
     assert "Saved as scan #1" in captured.err
+
+
+def test_exclusions_on_scan_and_saved_with_a_project(
+    tmp_path: Path, data: list[str], fake_osv: FakeOsvTransport, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = app(tmp_path)
+    (root / "vendor").mkdir()
+    write(root / "vendor", "4.17.20")
+    write(root, "4.17.21")
+    report = tmp_path / "r.json"
+    assert main(["scan", str(root), "--exclude", "vendor", "--json", str(report), *data]) == 0
+    assert "Excluded on request: vendor" in capsys.readouterr().out
+    assert json.loads(report.read_text(encoding="utf-8"))["excluded"] == ["vendor"]
+    assert main(["scan", str(root), "--exclude", "../x", *data]) == EXIT_ERROR
+
+    assert main(["project", "add", str(root), "--exclude", "vendor/", *data]) == EXIT_CLEAN
+    assert "Rescans skip: vendor" in capsys.readouterr().out
+    assert main(["rescan", "app", "--quiet", *data]) == EXIT_CLEAN  # vendor's 4.17.20 skipped
+    main(["project", "exclude", "app", "--clear", *data])
+    assert "skip nothing" in capsys.readouterr().out
+    assert main(["rescan", "app", "--quiet", *data]) == EXIT_AFFECTED
+    main(["project", "exclude", "app", "vendor", "*/tmp", *data])
+    main(["project", "list", *data])
+    assert "skips: vendor, */tmp" in capsys.readouterr().out
+    # A one-off --exclude on rescan adds to the saved ones.
+    main(["project", "exclude", "app", "--clear", *data])
+    assert main(["rescan", "app", "--exclude", "vendor", "--quiet", *data]) == EXIT_CLEAN
+    assert main(["project", "exclude", "app", "/abs", *data]) == EXIT_ERROR
